@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Google FZF Search",
+  "version": "1.1.0",
+  "description": "AI-powered fuzzy search for web pages and PDFs using in-browser ML",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "tabs",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*",
+    "file://*/*"
+  ],
+  "background": {
+    "service_worker": "background.bundle.js"
+  },
+  "content_scripts": [{
+    "matches": [
+      "http://*/*",
+      "https://*/*",
+      "file://*/*"
+    ],
+    "js": ["content.bundle.js"]
+  }],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "web_accessible_resources": [{
+    "resources": ["embeddings.json", "*.worker.js", "pdf.worker.bundle.js"],
+    "matches": ["<all_urls>"]
+  }],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+F",
+        "mac": "Command+Shift+F"
+      },
+      "description": "Open FZF Search"
+    }
+  }
+}
