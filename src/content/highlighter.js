@@ -30,13 +30,26 @@ if (!document.getElementById('fuzzy-search-styles')) {
  * @param {Node} textNode - The text node to highlight
  * @returns {HTMLElement|null} The created highlight span element or null if failed
  */
-export function highlight(textNode) {
-  if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
-    console.warn('Invalid node passed to highlight function');
+export function highlight(node) {
+  if (!node) {
+    console.warn('Invalid node passed to highlight function: null or undefined');
     return null;
   }
 
   try {
+    // If it's an element node, find its first text node
+    let textNode = node;
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      textNode = Array.from(node.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
+      if (!textNode || !textNode.textContent.trim()) {
+        console.warn('No valid text node found in element');
+        return null;
+      }
+    } else if (node.nodeType !== Node.TEXT_NODE) {
+      console.warn('Invalid node type passed to highlight function:', node.nodeType);
+      return null;
+    }
+
     const span = document.createElement('span');
     span.className = HIGHLIGHT_CLASS;
     
@@ -88,21 +101,21 @@ export function scrollToMatch(node) {
   }
 
   try {
-    // Remove previous active highlights
     const activeHighlights = document.querySelectorAll(`.${ACTIVE_HIGHLIGHT_CLASS}`);
     activeHighlights.forEach(h => h.classList.remove(ACTIVE_HIGHLIGHT_CLASS));
     
-    // Get the highlight element
-    const highlightElement = node.parentElement;
+    let highlightElement = node.parentElement;
     if (!highlightElement || !highlightElement.classList.contains(HIGHLIGHT_CLASS)) {
-      console.warn('Node is not properly highlighted');
-      return;
+      console.warn('Node is not properly highlighted, searching for existing highlight');
+      highlightElement = node.closest(`.${HIGHLIGHT_CLASS}`) || node.parentElement;
+      if (!highlightElement || !highlightElement.classList.contains(HIGHLIGHT_CLASS)) {
+        console.warn('No highlight element found for node');
+        return;
+      }
     }
 
-    // Add active highlight class
     highlightElement.classList.add(ACTIVE_HIGHLIGHT_CLASS);
 
-    // Check if element is in view
     const rect = highlightElement.getBoundingClientRect();
     const isOutOfView = (
       rect.bottom > window.innerHeight ||
@@ -111,7 +124,6 @@ export function scrollToMatch(node) {
       rect.left < 0
     );
 
-    // Only scroll if element is out of view
     if (isOutOfView) {
       highlightElement.scrollIntoView({
         behavior: 'smooth',

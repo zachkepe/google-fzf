@@ -44,33 +44,46 @@ class ContentSearchManager {
   async extractPDFText() {
     if (this.pdfTextExtracted) return;
     try {
-      const pdfText = await extractTextFromPDF(window.location.href, 1); // Start with page 1
+      const pdfText = await extractTextFromPDF(window.location.href, 1);
       let pdfContainer = document.getElementById('pdf-text-content');
       if (!pdfContainer) {
+        // Check if document.body exists (might not in PDF viewer)
+        if (!document.body) {
+          throw new Error('No document body available in PDF viewer');
+        }
         pdfContainer = document.createElement('div');
         pdfContainer.id = 'pdf-text-content';
         pdfContainer.style.display = 'none';
         document.body.appendChild(pdfContainer);
       }
-      pdfContainer.textContent = pdfText;
+      pdfContainer.textContent = pdfText || 'No text found in PDF';
       this.pdfTextExtracted = true;
-      console.log('PDF page 1 text extracted for search.');
+      console.log('PDF page 1 text extracted for search:', pdfText.length, 'characters');
     } catch (error) {
-      console.error('Error extracting PDF text:', error);
+      console.error('Error extracting PDF text:', error.message);
       chrome.runtime.sendMessage({ 
         type: 'PDF_ERROR', 
         message: error.message 
       });
+      this.pdfTextExtracted = true; // Mark as extracted to avoid retry loops
     }
   }
 
   async processPage() {
     const pdfContainer = document.getElementById('pdf-text-content');
     if (pdfContainer && pdfContainer.textContent) {
-      return [pdfContainer]; // Return the container directly
+      return [pdfContainer.childNodes[0]]; // Return the text node inside the container
     }
     const elements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
-    return Array.from(elements).filter(el => el.textContent.trim());
+    const textNodes = [];
+    elements.forEach(el => {
+      el.childNodes.forEach(node => {
+        if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+          textNodes.push(node);
+        }
+      });
+    });
+    return textNodes;
   }
 
   async search(query) {

@@ -24,18 +24,30 @@ chrome.webNavigation.onCompleted.addListener(
     if (details.url.toLowerCase().endsWith('.pdf')) {
       await initializeTensorFlow();
       try {
+        // First attempt: Inject into MAIN world
         await chrome.scripting.executeScript({
           target: { tabId: details.tabId },
           files: ['content.bundle.js'],
           world: 'MAIN'
         });
-        console.log('Content script injected into PDF tab:', details.tabId);
-      } catch (error) {
-        console.error('Failed to inject content script for PDF:', error);
-        chrome.tabs.sendMessage(details.tabId, {
-          type: 'PDF_INJECTION_FAILED',
-          message: 'Could not process this PDF. Try opening it in a new tab.'
-        });
+        console.log('Content script injected into PDF tab (MAIN world):', details.tabId);
+      } catch (mainError) {
+        console.warn('MAIN world injection failed, trying ISOLATED world:', mainError);
+        try {
+          // Fallback: Inject into ISOLATED world
+          await chrome.scripting.executeScript({
+            target: { tabId: details.tabId },
+            files: ['content.bundle.js'],
+            world: 'ISOLATED'
+          });
+          console.log('Content script injected into PDF tab (ISOLATED world):', details.tabId);
+        } catch (isolatedError) {
+          console.error('Failed to inject content script for PDF in both worlds:', isolatedError);
+          chrome.tabs.sendMessage(details.tabId, {
+            type: 'PDF_INJECTION_FAILED',
+            message: 'PDF search unavailable. Ensure this is a downloadable PDF and try again.'
+          });
+        }
       }
     }
   },

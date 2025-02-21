@@ -40,29 +40,47 @@ export async function extractTextFromPDF(url, pageNum = 1) {
   try {
     GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('pdf.worker.bundle.js');
     let pdfData;
+
+    // Add timeout to prevent hanging
+    const fetchWithTimeout = (url, options, timeout = 10000) => {
+      return Promise.race([
+        fetch(url, options),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Fetch timeout')), timeout)
+        )
+      ]);
+    };
+
     if (url.startsWith('file://')) {
-      try {
-        pdfData = await readLocalFile(url);
-      } catch (error) {
-        throw new Error('Cannot access local PDF. Enable "Allow access to file URLs" in chrome://extensions/');
-      }
+      pdfData = await readLocalFile(url);
     } else {
-      const response = await fetch(url);
+      const response = await fetchWithTimeout(url, { credentials: 'omit' });
       if (!response.ok) throw new Error(`HTTP error ${response.status}`);
       pdfData = await response.arrayBuffer();
     }
+
+    if (!pdfData || pdfData.byteLength === 0) {
+      throw new Error('Invalid or empty PDF data');
+    }
+
     const loadingTask = getDocument({ 
       data: pdfData,
       cMapUrl: chrome.runtime.getURL('node_modules/pdfjs-dist/cmaps/'),
       cMapPacked: true
     });
     const pdf = await loadingTask.promise;
-    const page = await pdf.getPage(pageNum); // Extract only one page at a time
+    if (pdf.numPages < pageNum) {
+      throw new Error(`Page ${pageNum} does not exist in PDF`);
+    }
+    const page = await pdf.getPage(pageNum);
     const content = await page.getTextContent({ normalizeWhitespace: true });
     const pageText = content.items.map(item => item.str.trim()).join(' ');
-    return pageText;
+    if (!pageText) {
+      console.warn('No text extracted from PDF page');
+    }
+    return pageText || '';
   } catch (error) {
-    console.error('Error in extractTextFromPDF:', error);
+    console.error('Error in extractTextFromPDF:', error.message);
     throw error;
   }
 }
