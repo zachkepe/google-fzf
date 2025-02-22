@@ -1,10 +1,9 @@
+// src/content/content.js
 import SimilaritySearch from '../models/model';
 import { sanitizeInput, validateSearchPattern } from '../utils/sanitizer';
 import RateLimiter from '../utils/rateLimiter';
 import { highlight, clearHighlights, scrollToMatch } from './highlighter';
-import { extractTextFromPDF } from '../utils/pdfHandler'; // New import for PDF processing
 
-// Global instance
 let searchManager = null;
 
 class ContentSearchManager {
@@ -16,74 +15,31 @@ class ContentSearchManager {
     this.isSearching = false;
     this.isInitialized = false;
     this.highlightElements = [];
-    this.pdfTextExtracted = false;
   }
 
   async initialize() {
     if (this.isInitialized) return;
-    
     try {
       await this.similaritySearch.initialize();
       this.isInitialized = true;
       console.log('Search manager initialized');
-      // If page is a PDF, extract its text
-      if (this.isPDFPage()) {
-        await this.extractPDFText();
-      }
     } catch (error) {
       console.error('Failed to initialize search manager:', error);
       throw error;
     }
   }
-  
-  isPDFPage() {
-    return window.location.href.toLowerCase().endsWith('.pdf') ||
-           (document.contentType && document.contentType === 'application/pdf');
-  }
-  
-  async extractPDFText() {
-    if (this.pdfTextExtracted) return;
-    try {
-      const pdfText = await extractTextFromPDF(window.location.href, 1);
-      let pdfContainer = document.getElementById('pdf-text-content');
-      if (!pdfContainer) {
-        // Check if document.body exists (might not in PDF viewer)
-        if (!document.body) {
-          throw new Error('No document body available in PDF viewer');
-        }
-        pdfContainer = document.createElement('div');
-        pdfContainer.id = 'pdf-text-content';
-        pdfContainer.style.display = 'none';
-        document.body.appendChild(pdfContainer);
-      }
-      pdfContainer.textContent = pdfText || 'No text found in PDF';
-      this.pdfTextExtracted = true;
-      console.log('PDF page 1 text extracted for search:', pdfText.length, 'characters');
-    } catch (error) {
-      console.error('Error extracting PDF text:', error.message);
-      chrome.runtime.sendMessage({ 
-        type: 'PDF_ERROR', 
-        message: error.message 
-      });
-      this.pdfTextExtracted = true; // Mark as extracted to avoid retry loops
-    }
-  }
 
   async processPage() {
-    const pdfContainer = document.getElementById('pdf-text-content');
-    if (pdfContainer && pdfContainer.textContent) {
-      return [pdfContainer.childNodes[0]]; // Return the text node inside the container
+    const textLayers = document.querySelectorAll('.textLayer span');
+    if (textLayers.length > 0) {
+      // PDF viewer context
+      return Array.from(textLayers).filter(span => span.textContent.trim());
     }
-    const elements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
-    const textNodes = [];
-    elements.forEach(el => {
-      el.childNodes.forEach(node => {
-        if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
-          textNodes.push(node);
-        }
-      });
-    });
-    return textNodes;
+    // Regular webpage context
+    const elements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, td, th, div:not(.textLayer)');
+    return Array.from(elements)
+      .flatMap(el => Array.from(el.childNodes))
+      .filter(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
   }
 
   async search(query) {
@@ -101,16 +57,17 @@ class ContentSearchManager {
       this.currentMatches = [];
       this.currentMatchIndex = -1;
       this.highlightElements = [];
-      const textNodes = await this.processPage();
+      const nodes = await this.processPage();
       const batchSize = 10;
-      for (let i = 0; i < textNodes.length; i += batchSize) {
-        if (!this.isSearching) break; // Allow cancellation
-        const batch = textNodes.slice(i, i + batchSize);
+      for (let i = 0; i < nodes.length; i += batchSize) {
+        if (!this.isSearching) break;
+        const batch = nodes.slice(i, i + batchSize);
         const promises = batch.map(async node => {
-          if (node.textContent.trim().length < 2) return null;
+          const text = node.textContent || node.innerText || '';
+          if (text.trim().length < 2) return null;
           const isSimilar = await this.similaritySearch.findSimilar(
             sanitizedQuery,
-            node.textContent
+            text
           );
           return isSimilar ? node : null;
         });
@@ -156,44 +113,45 @@ class ContentSearchManager {
 
 if (!window.googleFzfInitialized) {
   window.googleFzfInitialized = true;
-  // Initialize manager and set up message listeners
   async function initializeExtension() {
     try {
       searchManager = new ContentSearchManager();
       await searchManager.initialize();
       
-      chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-        (async () => {
-          try {
-            if (request.type === 'PING') {
-              sendResponse({ status: 'OK' });
-              return true;
+      if (typeof chrome !== 'undefined' && chrome.runtime) {
+        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+          (async () => {
+            try {
+              if (request.type === 'PING') {
+                sendResponse({ status: 'OK' });
+                return true;
+              }
+              if (request.type === 'START_SEARCH') {
+                const matchCount = await searchManager.search(request.query);
+                sendResponse({ success: true, matchCount });
+              } else if (request.type === 'NEXT_MATCH') {
+                searchManager.nextMatch();
+                sendResponse({ success: true });
+              } else if (request.type === 'PREV_MATCH') {
+                searchManager.previousMatch();
+                sendResponse({ success: true });
+              } else if (request.type === 'CANCEL_SEARCH') {
+                searchManager.isSearching = false;
+                sendResponse({ success: true });
+              }
+            } catch (error) {
+              sendResponse({ success: false, error: error.message });
             }
-            if (request.type === 'START_SEARCH') {
-              const matchCount = await searchManager.search(request.query);
-              sendResponse({ success: true, matchCount });
-            } else if (request.type === 'NEXT_MATCH') {
-              searchManager.nextMatch();
-              sendResponse({ success: true });
-            } else if (request.type === 'PREV_MATCH') {
-              searchManager.previousMatch();
-              sendResponse({ success: true });
-            } else if (request.type === 'CANCEL_SEARCH') {
-              searchManager.isSearching = false;
-              sendResponse({ success: true });
-            }
-          } catch (error) {
-            sendResponse({ success: false, error: error.message });
-          }
-        })();
-        return true;
-      });
-      chrome.runtime.sendMessage({ type: 'CONTENT_SCRIPT_READY' });
+          })();
+          return true;
+        });
+        chrome.runtime.sendMessage({ type: 'CONTENT_SCRIPT_READY' });
+      } else {
+        console.warn('Chrome runtime unavailable; extension limited to local functionality');
+      }
     } catch (error) {
       console.error('Failed to initialize extension:', error);
     }
   }
-
-  // Start initialization
   initializeExtension();
 }

@@ -7,7 +7,9 @@
     "activeTab",
     "scripting",
     "tabs",
-    "webNavigation"
+    "webNavigation",
+    "webRequest",
+    "downloads"
   ],
   "host_permissions": [
     "http://*/*",
@@ -29,7 +31,12 @@
     "default_popup": "popup.html"
   },
   "web_accessible_resources": [{
-    "resources": ["embeddings.json", "*.worker.js", "pdf.worker.bundle.js"],
+    "resources": [
+      "embeddings.json",
+      "pdf.worker.bundle.js",
+      "pdfViewer.html",
+      "pdfViewer.bundle.js"
+    ],
     "matches": ["<all_urls>"]
   }],
   "commands": {

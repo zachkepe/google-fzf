@@ -5,6 +5,7 @@ const EMBEDDING_DIM = 50;
 
 class SimilaritySearch {
   static instance = null;
+  static tfInitialized = false;
 
   constructor() {
     if (SimilaritySearch.instance) {
@@ -19,17 +20,47 @@ class SimilaritySearch {
 
   async initialize() {
     if (this.embeddings) return;
-
-    // Check if TensorFlow.js is initialized in background
-    const response = await new Promise(resolve => {
-      chrome.runtime.sendMessage({ type: 'GET_TF_STATUS' }, resolve);
-    });
-    if (!response || !response.initialized) {
-      throw new Error('TensorFlow.js not initialized in background');
+  
+    // Ensure TensorFlow.js is initialized only once
+    if (!SimilaritySearch.tfInitialized) {
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+        const response = await new Promise(resolve => {
+          chrome.runtime.sendMessage({ type: 'GET_TF_STATUS' }, resolve);
+        });
+        if (response && response.initialized) {
+          SimilaritySearch.tfInitialized = true;
+        }
+      }
+      if (!SimilaritySearch.tfInitialized) {
+        try {
+          await tf.setBackend('webgl');
+          console.log('TensorFlow.js initialized locally with WebGL backend');
+          SimilaritySearch.tfInitialized = true;
+        } catch (error) {
+          console.error('Failed to initialize TensorFlow.js locally:', error);
+          throw error;
+        }
+      }
     }
-
+  
+    // Check if running in a PDF viewer context where resources are inaccessible
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.getURL) {
+      const isPDF = window.location.href.toLowerCase().endsWith('.pdf');
+      throw new Error(
+        isPDF
+          ? 'Resource loading unavailable in Chrome PDF viewer. Download the PDF and open locally.'
+          : 'chrome.runtime unavailable; cannot load embeddings.'
+      );
+    }
+  
     try {
-      const response = await fetch(chrome.runtime.getURL('embeddings.json'));
+      const embeddingsUrl = chrome.runtime.getURL('embeddings.json');
+      console.log('Attempting to fetch embeddings from:', embeddingsUrl);
+      const response = await fetch(embeddingsUrl, { method: 'GET' });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch embeddings: ${response.status} ${response.statusText} - Response: ${errorText.slice(0, 100)}`);
+      }
       const data = await response.json();
       this.wordToIndex = data.vocabulary;
       this.embeddings = tf.tensor2d(data.embeddings, [VOCAB_SIZE, EMBEDDING_DIM]);

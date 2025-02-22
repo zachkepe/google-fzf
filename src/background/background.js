@@ -1,6 +1,7 @@
 import * as tf from '@tensorflow/tfjs';
 
 let tfInitialized = false;
+let localPdfData = null;
 
 async function initializeTensorFlow() {
   if (tfInitialized) return;
@@ -15,72 +16,68 @@ async function initializeTensorFlow() {
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Extension installed');
-  initializeTensorFlow(); // Initialize on install
+  initializeTensorFlow();
 });
 
-// Ensure TF.js is ready before any content script injection
-chrome.webNavigation.onCompleted.addListener(
-  async (details) => {
-    if (details.url.toLowerCase().endsWith('.pdf')) {
-      await initializeTensorFlow();
-      try {
-        // First attempt: Inject into MAIN world
-        await chrome.scripting.executeScript({
-          target: { tabId: details.tabId },
-          files: ['content.bundle.js'],
-          world: 'MAIN'
-        });
-        console.log('Content script injected into PDF tab (MAIN world):', details.tabId);
-      } catch (mainError) {
-        console.warn('MAIN world injection failed, trying ISOLATED world:', mainError);
-        try {
-          // Fallback: Inject into ISOLATED world
-          await chrome.scripting.executeScript({
-            target: { tabId: details.tabId },
-            files: ['content.bundle.js'],
-            world: 'ISOLATED'
-          });
-          console.log('Content script injected into PDF tab (ISOLATED world):', details.tabId);
-        } catch (isolatedError) {
-          console.error('Failed to inject content script for PDF in both worlds:', isolatedError);
-          chrome.tabs.sendMessage(details.tabId, {
-            type: 'PDF_INJECTION_FAILED',
-            message: 'PDF search unavailable. Ensure this is a downloadable PDF and try again.'
-          });
-        }
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === 'SET_LOCAL_PDF_DATA') {
+    localPdfData = request.data;
+    console.log('Local PDF data stored, size:', localPdfData.byteLength);
+    sendResponse({ success: true });
+  } else if (request.type === 'GET_LOCAL_PDF_DATA') {
+    sendResponse({ data: localPdfData });
+    localPdfData = null; // Clear after sending
+  } else if (request.type === 'GET_TF_STATUS') {
+    // Added handler for GET_TF_STATUS
+    sendResponse({ initialized: tfInitialized });
+  } else if (request.type === 'FETCH_EMBEDDINGS') {
+    const embeddingsUrl = chrome.runtime.getURL('embeddings.json');
+    fetch(embeddingsUrl, { method: 'GET' })
+      .then(response => {
+        if (!response.ok) throw new Error(`Failed to fetch embeddings: ${response.status}`);
+        return response.json();
+      })
+      .then(data => sendResponse({ data }))
+      .catch(error => {
+        console.error('Embeddings fetch failed:', error);
+        sendResponse({ error: error.message });
+      });
+    return true;
+  } else if (request.type === 'FETCH_PDF') {
+    console.log('Fetching PDF from:', request.url);
+    fetch(request.url, { method: 'GET', credentials: 'omit' })
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+        return response.arrayBuffer();
+      })
+      .then(data => {
+        console.log('PDF data fetched, size:', data.byteLength);
+        sendResponse({ data });
+      })
+      .catch(error => {
+        console.error('PDF fetch failed:', error);
+        sendResponse({ error: error.message });
+      });
+    return true;
+  } else if (request.type === 'DOWNLOAD_PDF') {
+    chrome.downloads.download({ url: request.url }, downloadId => {
+      if (chrome.runtime.lastError) {
+        console.error('Download failed:', chrome.runtime.lastError);
+      } else {
+        console.log('Download started, ID:', downloadId);
       }
+    });
+    sendResponse({ success: true });
+    return true;
+  }
+});
+
+chrome.webNavigation.onBeforeNavigate.addListener(
+  (details) => {
+    if (details.url.toLowerCase().endsWith('.pdf')) {
+      const viewerUrl = chrome.runtime.getURL('pdfViewer.html') + '?file=' + encodeURIComponent(details.url);
+      chrome.tabs.update(details.tabId, { url: viewerUrl });
     }
   },
   { url: [{ urlMatches: '.*\\.pdf$' }] }
 );
-
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.type === 'INIT_SEARCH') {
-    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-      try {
-        const activeTab = tabs[0];
-        await initializeTensorFlow();
-        try {
-          await chrome.scripting.executeScript({
-            target: { tabId: activeTab.id },
-            files: ['content.bundle.js']
-          });
-        } catch (error) {
-          console.warn('Content script already loaded or failed to load:', error);
-        }
-        chrome.tabs.sendMessage(activeTab.id, {
-          type: 'START_SEARCH',
-          query: request.query
-        }, (response) => {
-          sendResponse(response);
-        });
-      } catch (error) {
-        sendResponse({ success: false, error: error.message });
-      }
-    });
-    return true;
-  } else if (request.type === 'GET_TF_STATUS') {
-    sendResponse({ initialized: tfInitialized });
-    return true;
-  }
-});

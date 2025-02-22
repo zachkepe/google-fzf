@@ -8,7 +8,8 @@ module.exports = {
     background: './src/background/background.js',
     content: './src/content/content.js',
     popup: './src/popup/popup.js',
-    'search.worker': './src/workers/search.worker.js'
+    'search.worker': './src/workers/search.worker.js',
+    pdfViewer: './src/pdfViewer/pdfViewer.js'
   },
   output: {
     filename: '[name].bundle.js',
@@ -34,14 +35,17 @@ module.exports = {
       }
     ]
   },
+  resolve: {
+    extensions: ['.js', '.json', '.wasm'] // Explicitly support .js
+  },
   plugins: [
     new CopyPlugin({
       patterns: [
         { from: 'src/popup/popup.html', to: 'popup.html' },
         { from: 'manifest.json', to: 'manifest.json' },
         { from: 'src/data/embeddings.json', to: 'embeddings.json' },
-        // Copy the PDF worker from the legacy build folder:
-        { from: 'node_modules/pdfjs-dist/legacy/build/pdf.worker.js', to: 'pdf.worker.bundle.js' }
+        { from: 'node_modules/pdfjs-dist/legacy/build/pdf.worker.js', to: 'pdf.worker.bundle.js' },
+        { from: 'src/pdfViewer/pdfViewer.html', to: 'pdfViewer.html' }
       ],
     }),
   ],
