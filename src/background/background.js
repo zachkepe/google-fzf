@@ -28,7 +28,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ data: localPdfData });
     localPdfData = null; // Clear after sending
   } else if (request.type === 'GET_TF_STATUS') {
-    // Added handler for GET_TF_STATUS
     sendResponse({ initialized: tfInitialized });
   } else if (request.type === 'FETCH_EMBEDDINGS') {
     const embeddingsUrl = chrome.runtime.getURL('embeddings.json');

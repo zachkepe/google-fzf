@@ -15,11 +15,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       const url = tab.url || '';
-      if (url.startsWith('chrome://') || url.startsWith('chrome-extension://') || url.startsWith('about:') || url.startsWith('edge://') || url.startsWith('brave://')) {
+      // Allow searching on your PDF viewer page
+      if (url.startsWith(chrome.runtime.getURL('pdfViewer.html'))) {
+        return true;
+      }
+      // Restrict other chrome://, about:, etc., pages
+      if (url.startsWith('chrome://') || url.startsWith('about:') || url.startsWith('edge://') || url.startsWith('brave://')) {
         updateStatus('Search is not available on this page', true);
         searchInput.disabled = true;
         return false;
       }
+      // Allow other pages (e.g., http://, https://, file:// if not your viewer)
       return true;
     } catch (error) {
       console.error('Error checking page:', error);
@@ -110,4 +116,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     chrome.tabs.sendMessage(tab.id, { type: 'NEXT_MATCH' });
   });
+
+  // Initialize
+  try {
+    if (await isSearchablePage()) {
+      await checkContentScript();
+      searchInput.focus();
+    }
+  } catch (error) {
+    console.error('Initialization error:', error);
+    updateStatus('Failed to initialize extension', true);
+  }
 });
