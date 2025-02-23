@@ -6,6 +6,7 @@ import { highlight, clearHighlights, scrollToMatch } from './highlighter';
 
 let searchManager = null;
 
+// ContentSearchManager class to handle search operations.
 class ContentSearchManager {
   constructor() {
     this.similaritySearch = new SimilaritySearch();
