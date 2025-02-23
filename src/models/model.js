@@ -1,6 +1,6 @@
 import * as tf from '@tensorflow/tfjs';
 
-const VOCAB_SIZE = 2000;
+const VOCAB_SIZE = 20000;
 const EMBEDDING_DIM = 50;
 
 class SimilaritySearch {
@@ -71,14 +71,13 @@ class SimilaritySearch {
     }
   }
 
-  async findSimilar(searchText, pageText, threshold = 0.75) {
+  async findSimilar(searchText, pageText, threshold = 0.8) {
     await this.initialize();
     try {
       const searchEmbedding = this.getTextEmbedding(searchText);
       if (!searchEmbedding) return false;
       const chunkSize = 50; // Smaller chunks for faster processing
       const chunks = this.splitIntoChunks(pageText, chunkSize);
-      const batchSize = 10; // Larger batch for efficiency
       const chunkEmbeddings = chunks.map(chunk => this.getTextEmbedding(chunk)).filter(Boolean);
       if (!chunkEmbeddings.length) return false;
       const batchTensor = tf.stack(chunkEmbeddings);
@@ -108,6 +107,7 @@ class SimilaritySearch {
         .map(token => this.wordToIndex[token])
         .filter(index => index !== undefined && index < VOCAB_SIZE);
       if (validIndices.length === 0) {
+        // Do not warn for missing embeddings (it's expected for some tokens)
         return null;
       }
       return tf.tidy(() => {

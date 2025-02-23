@@ -3,6 +3,11 @@ import * as tf from '@tensorflow/tfjs';
 let tfInitialized = false;
 let localPdfData = null;
 
+chrome.runtime.onInstalled.addListener(() => {
+  console.log('Extension installed');
+  initializeTensorFlow();
+});
+
 async function initializeTensorFlow() {
   if (tfInitialized) return;
   try {
@@ -14,19 +19,25 @@ async function initializeTensorFlow() {
   }
 }
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('Extension installed');
-  initializeTensorFlow();
-});
-
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === 'SET_LOCAL_PDF_DATA') {
     localPdfData = request.data;
     console.log('Local PDF data stored, size:', localPdfData.byteLength);
     sendResponse({ success: true });
   } else if (request.type === 'GET_LOCAL_PDF_DATA') {
-    sendResponse({ data: localPdfData });
-    localPdfData = null; // Clear after sending
+    if (localPdfData) {
+      let binary = '';
+      const bytes = new Uint8Array(localPdfData);
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const base64Data = btoa(binary);
+      sendResponse({ data: base64Data });
+      localPdfData = null;
+    } else {
+      sendResponse({ error: 'No local PDF data available' });
+    }
   } else if (request.type === 'GET_TF_STATUS') {
     sendResponse({ initialized: tfInitialized });
   } else if (request.type === 'FETCH_EMBEDDINGS') {
@@ -51,7 +62,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       })
       .then(data => {
         console.log('PDF data fetched, size:', data.byteLength);
-        sendResponse({ data });
+        let binary = '';
+        const bytes = new Uint8Array(data);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const base64Data = btoa(binary);
+        sendResponse({ data: base64Data });
       })
       .catch(error => {
         console.error('PDF fetch failed:', error);
