@@ -21,7 +21,6 @@ class SimilaritySearch {
   async initialize() {
     if (this.embeddings) return;
   
-    // Ensure TensorFlow.js is initialized only once
     if (!SimilaritySearch.tfInitialized) {
       if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
         const response = await new Promise(resolve => {
@@ -43,7 +42,6 @@ class SimilaritySearch {
       }
     }
   
-    // Check if running in a PDF viewer context where resources are inaccessible
     if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.getURL) {
       const isPDF = window.location.href.toLowerCase().endsWith('.pdf');
       throw new Error(
@@ -74,14 +72,17 @@ class SimilaritySearch {
   async findSimilar(searchText, pageText, threshold = 0.8) {
     await this.initialize();
     try {
-      const searchEmbedding = this.getTextEmbedding(searchText);
+      const searchEmbedding = this.getTextEmbedding(searchText, true); // Pass isQuery flag
       if (!searchEmbedding) return false;
-      const chunkSize = 50; // Smaller chunks for faster processing
+
+      const chunkSize = 50; // Number of words per chunk
       const chunks = this.splitIntoChunks(pageText, chunkSize);
-      const chunkEmbeddings = chunks.map(chunk => this.getTextEmbedding(chunk)).filter(Boolean);
+      const chunkEmbeddings = chunks.map(chunk => this.getTextEmbedding(chunk, false)).filter(Boolean);
       if (!chunkEmbeddings.length) return false;
+
       const batchTensor = tf.stack(chunkEmbeddings);
       const similarities = this.batchCosineSimilarity(searchEmbedding, batchTensor).dataSync();
+      console.log(`Similarity scores for "${searchText}":`, similarities); // Debug log
       return similarities.some(sim => sim > threshold);
     } catch (error) {
       console.error('Error in findSimilar:', error);
@@ -96,20 +97,23 @@ class SimilaritySearch {
     return tf.squeeze(dotProduct.div(norms.mul(embeddingNorm)));
   }
 
-  getTextEmbedding(text) {
+  getTextEmbedding(text, isQuery = false) {
     try {
       if (this.cache.has(text)) {
         return this.cache.get(text);
       }
-      if (this.cache.size > 1000) this.cache.clear(); // Clear cache if too large
-      const tokens = this.tokenize(text);
+      if (this.cache.size > 1000) this.cache.clear();
+
+      const tokens = this.tokenize(text, isQuery);
       const validIndices = tokens
         .map(token => this.wordToIndex[token])
         .filter(index => index !== undefined && index < VOCAB_SIZE);
+
       if (validIndices.length === 0) {
-        // Do not warn for missing embeddings (it's expected for some tokens)
+        console.log(`No embeddings found for text: "${text}"`);
         return null;
       }
+
       return tf.tidy(() => {
         const embeddings = validIndices.map(index => 
           this.embeddings.slice([index, 0], [1, EMBEDDING_DIM])
@@ -125,22 +129,28 @@ class SimilaritySearch {
     }
   }
 
-  splitIntoChunks(text, chunkSize = 100) {
-    const words = this.tokenize(text);
+  splitIntoChunks(text, chunkSize = 50) {
+    const words = text.toLowerCase().split(/\s+/).filter(word => word.length > 0);
     const chunks = [];
-    
     for (let i = 0; i < words.length; i += chunkSize) {
       chunks.push(words.slice(i, i + chunkSize).join(' '));
     }
-    
     return chunks;
   }
 
-  tokenize(text) {
-    return text.toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')
-      .split(/\s+/)
-      .filter(word => word.length > 2);
+  tokenizedQuery = null;
+
+  tokenize(text, isQuery = false) {
+    const cleanedText = text.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+    if (isQuery) {
+      // Treat the entire query as a single unit, but still split for embedding lookup
+      const tokens = cleanedText.split(/\s+/).filter(word => word.length > 2);
+      this.tokenizedQuery = tokens;
+      return tokens; // Return tokenized query for embedding generation
+    } else {
+      // For page text, tokenize normally but keep chunks intact later
+      return cleanedText.split(/\s+/).filter(word => word.length > 2);
+    }
   }
 
   cosineSimilarity(embedding1, embedding2) {
@@ -156,7 +166,6 @@ class SimilaritySearch {
   }
 
   dispose() {
-    // Clean up tensors
     if (this.embeddings) {
       this.embeddings.dispose();
     }

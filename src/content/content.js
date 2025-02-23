@@ -1,4 +1,3 @@
-// src/content/content.js
 import SimilaritySearch from '../models/model';
 import { sanitizeInput, validateSearchPattern } from '../utils/sanitizer';
 import RateLimiter from '../utils/rateLimiter';
@@ -6,7 +5,6 @@ import { highlight, clearHighlights, scrollToMatch } from './highlighter';
 
 let searchManager = null;
 
-// ContentSearchManager class to handle search operations.
 class ContentSearchManager {
   constructor() {
     this.similaritySearch = new SimilaritySearch();
@@ -33,14 +31,58 @@ class ContentSearchManager {
   async processPage() {
     const textLayers = document.querySelectorAll('.textLayer span');
     if (textLayers.length > 0) {
-      // PDF viewer context
-      return Array.from(textLayers).filter(span => span.textContent.trim());
+      // PDF viewer context: Group spans into chunks of ~50 words
+      const spans = Array.from(textLayers).filter(span => span.textContent.trim());
+      const chunks = [];
+      let currentChunk = { text: '', spans: [] };
+      let wordCount = 0;
+
+      for (const span of spans) {
+        const spanText = span.textContent.trim();
+        const words = spanText.split(/\s+/);
+        currentChunk.text += spanText + ' ';
+        currentChunk.spans.push(span);
+        wordCount += words.length;
+
+        if (wordCount >= 50) {
+          chunks.push({ text: currentChunk.text.trim(), spans: [...currentChunk.spans] });
+          currentChunk = { text: '', spans: [] };
+          wordCount = 0;
+        }
+      }
+      if (currentChunk.text.trim()) {
+        chunks.push({ text: currentChunk.text.trim(), spans: [...currentChunk.spans] });
+      }
+      return { isPDF: true, chunks };
     }
-    // Regular webpage context
+    
+    // Regular webpage context: Group text nodes into chunks
     const elements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, td, th, div:not(.textLayer)');
-    return Array.from(elements)
+    const textNodes = Array.from(elements)
       .flatMap(el => Array.from(el.childNodes))
       .filter(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+    
+    const chunks = [];
+    let currentChunk = { text: '', nodes: [] };
+    let wordCount = 0;
+
+    for (const node of textNodes) {
+      const nodeText = node.textContent.trim();
+      const words = nodeText.split(/\s+/);
+      currentChunk.text += nodeText + ' ';
+      currentChunk.nodes.push(node);
+      wordCount += words.length;
+
+      if (wordCount >= 50) {
+        chunks.push({ text: currentChunk.text.trim(), nodes: [...currentChunk.nodes] });
+        currentChunk = { text: '', nodes: [] };
+        wordCount = 0;
+      }
+    }
+    if (currentChunk.text.trim()) {
+      chunks.push({ text: currentChunk.text.trim(), nodes: [...currentChunk.nodes] });
+    }
+    return { isPDF: false, chunks };
   }
 
   async search(query) {
@@ -58,38 +100,33 @@ class ContentSearchManager {
       this.currentMatches = [];
       this.currentMatchIndex = -1;
       this.highlightElements = [];
-      const nodes = await this.processPage();
-      const batchSize = 10;
-      for (let i = 0; i < nodes.length; i += batchSize) {
+      const { isPDF, chunks } = await this.processPage();
+
+      for (const chunk of chunks) {
         if (!this.isSearching) break;
-        const batch = nodes.slice(i, i + batchSize);
-        const promises = batch.map(async node => {
-          const text = node.textContent || node.innerText || '';
-          if (text.trim().length < 2) return null;
-          const isSimilar = await this.similaritySearch.findSimilar(
-            sanitizedQuery,
-            text
-          );
-          return isSimilar ? node : null;
-        });
-        const results = await Promise.all(promises);
-        const matches = results.filter(r => r !== null);
-        for (const node of matches) {
-          this.currentMatches.push(node);
-          const highlightEl = highlight(node);
-          if (highlightEl) {
-            this.highlightElements.push(highlightEl);
+        const isSimilar = await this.similaritySearch.findSimilar(sanitizedQuery, chunk.text);
+        if (isSimilar) {
+          this.currentMatches.push(chunk);
+          const elementsToHighlight = isPDF ? chunk.spans : chunk.nodes;
+          for (const element of elementsToHighlight) {
+            const highlightEl = highlight(element);
+            if (highlightEl) {
+              this.highlightElements.push(highlightEl);
+            }
           }
         }
-        chrome.runtime.sendMessage({ 
-          type: 'SEARCH_PROGRESS', 
-          count: this.currentMatches.length 
-        });
       }
+
       if (this.currentMatches.length > 0) {
         this.currentMatchIndex = 0;
-        scrollToMatch(this.currentMatches[0]);
+        const firstMatch = this.currentMatches[0];
+        scrollToMatch(isPDF ? firstMatch.spans[0] : firstMatch.nodes[0]);
       }
+      
+      chrome.runtime.sendMessage({ 
+        type: 'SEARCH_PROGRESS', 
+        count: this.currentMatches.length 
+      });
       return this.currentMatches.length;
     } catch (error) {
       console.error('Search error:', error);
@@ -101,14 +138,16 @@ class ContentSearchManager {
 
   nextMatch() {
     if (this.currentMatches.length === 0) return;
-    this.currentMatchIndex = (this.currentMatches.length + this.currentMatchIndex + 1) % this.currentMatches.length;
-    scrollToMatch(this.currentMatches[this.currentMatchIndex]);
+    this.currentMatchIndex = (this.currentMatchIndex + 1) % this.currentMatches.length;
+    const match = this.currentMatches[this.currentMatchIndex];
+    scrollToMatch(match.spans ? match.spans[0] : match.nodes[0]);
   }
 
   previousMatch() {
     if (this.currentMatches.length === 0) return;
     this.currentMatchIndex = (this.currentMatches.length + this.currentMatchIndex - 1) % this.currentMatches.length;
-    scrollToMatch(this.currentMatches[this.currentMatchIndex]);
+    const match = this.currentMatches[this.currentMatchIndex];
+    scrollToMatch(match.spans ? match.spans[0] : match.nodes[0]);
   }
 }
 

@@ -1,7 +1,7 @@
 import * as tf from '@tensorflow/tfjs';
 import FuzzySearch from 'fuzzy-search';
 
-const SIMILARITY_THRESHOLD = 0.75;
+const SIMILARITY_THRESHOLD = 0.8;
 const MAX_RESULTS = 50;
 const CONTEXT_WORDS = 10;
 const VOCAB_SIZE = 20000; // Match generate-embeddings.js
