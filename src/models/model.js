@@ -1,6 +1,6 @@
 import * as tf from '@tensorflow/tfjs';
 
-const VOCAB_SIZE = 20000;
+const VOCAB_SIZE = 7000;
 const EMBEDDING_DIM = 50;
 
 class SimilaritySearch {

@@ -1,4 +1,4 @@
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
+import * as pdfjsLib from 'pdfjs-dist';
 import '../content/content.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('pdf.worker.bundle.js');
@@ -72,12 +72,13 @@ async function renderPDF() {
 
       // Render text layer using PDF.js
       const textContent = await page.getTextContent({ normalizeWhitespace: true });
-      pdfjsLib.renderTextLayer({
+      const textLayer = new pdfjsLib.TextLayer({
         textContent,
         container: textLayerDiv,
         viewport,
         textDivs: []
       });
+      textLayer.render();
     }
 
     console.log('PDF rendered successfully');

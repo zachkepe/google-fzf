@@ -3,7 +3,7 @@ const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
-  mode: 'development',
+  mode: 'production',
   entry: {
     background: './src/background/background.js',
     content: './src/content/content.js',
@@ -36,7 +36,11 @@ module.exports = {
     ]
   },
   resolve: {
-    extensions: ['.js', '.json', '.wasm'] // Explicitly support .js
+    extensions: ['.js', '.json', '.wasm'],
+    fallback: {
+      // Ensure pdfjs-dist resolves correctly if needed
+      'pdfjs-dist': require.resolve('pdfjs-dist')
+    }
   },
   plugins: [
     new CopyPlugin({
@@ -44,7 +48,7 @@ module.exports = {
         { from: 'src/popup/popup.html', to: 'popup.html' },
         { from: 'manifest.json', to: 'manifest.json' },
         { from: 'src/data/embeddings.json', to: 'embeddings.json' },
-        { from: 'node_modules/pdfjs-dist/legacy/build/pdf.worker.js', to: 'pdf.worker.bundle.js' },
+        { from: 'node_modules/pdfjs-dist/build/pdf.worker.mjs', to: 'pdf.worker.bundle.js' },
         { from: 'src/pdfViewer/pdfViewer.html', to: 'pdfViewer.html' }
       ],
     }),

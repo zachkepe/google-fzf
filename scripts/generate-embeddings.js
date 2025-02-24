@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const gloveFile = path.join(__dirname, '..', 'glove.6B.50d.txt');
-const VOCAB_SIZE = 20000;
+const VOCAB_SIZE = 7000;
 
 async function generateEmbeddings() {
   console.log('Reading GloVe file...');
