@@ -4,28 +4,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   const status = document.getElementById('status');
   const cancelButton = document.getElementById('cancel-search');
   const pdfFileInput = document.getElementById('pdf-file-input');
+  const prevButton = document.getElementById('prev-match');
+  const nextButton = document.getElementById('next-match');
+  const matchPosition = document.getElementById('match-position');
   let debounceTimeout;
+  let currentIndex = 0;
+  let totalMatches = 0;
 
   function updateStatus(message, isError = false) {
     status.textContent = message;
     status.className = isError ? 'error' : 'success';
   }
 
+  function updateMatchPosition() {
+    if (totalMatches > 0) {
+      matchPosition.textContent = `${currentIndex + 1}/${totalMatches}`;
+    } else {
+      matchPosition.textContent = '';
+    }
+  }
+
   async function isSearchablePage() {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       const url = tab.url || '';
-      // Allow searching on your PDF viewer page
       if (url.startsWith(chrome.runtime.getURL('pdfViewer.html'))) {
         return true;
       }
-      // Restrict other chrome://, about:, etc., pages
       if (url.startsWith('chrome://') || url.startsWith('about:') || url.startsWith('edge://') || url.startsWith('brave://')) {
         updateStatus('Search is not available on this page', true);
         searchInput.disabled = true;
         return false;
       }
-      // Allow other pages (e.g., http://, https://, file:// if not your viewer)
       return true;
     } catch (error) {
       console.error('Error checking page:', error);
@@ -59,6 +69,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function performSearch(query) {
     if (!query.trim()) {
       resultsCount.textContent = '';
+      matchPosition.textContent = '';
+      currentIndex = 0;
+      totalMatches = 0;
       return;
     }
     updateStatus('Searching...');
@@ -69,7 +82,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       const response = await chrome.tabs.sendMessage(tab.id, { type: 'START_SEARCH', query });
       if (response?.success) {
+        currentIndex = response.currentIndex;
+        totalMatches = response.totalMatches;
         resultsCount.textContent = `Found ${response.matchCount} match${response.matchCount !== 1 ? 'es' : ''}`;
+        updateMatchPosition();
         updateStatus('');
       } else {
         updateStatus(response?.error || 'Search failed', true);
@@ -90,6 +106,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await chrome.tabs.sendMessage(tab.id, { type: 'CANCEL_SEARCH' });
     updateStatus('Search cancelled');
     resultsCount.textContent = '';
+    matchPosition.textContent = '';
+    currentIndex = 0;
+    totalMatches = 0;
   });
 
   pdfFileInput.addEventListener('change', async (e) => {
@@ -106,15 +125,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  const prevButton = document.getElementById('prev-match');
-  const nextButton = document.getElementById('next-match');
   prevButton.addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    chrome.tabs.sendMessage(tab.id, { type: 'PREV_MATCH' });
+    await chrome.tabs.sendMessage(tab.id, { type: 'PREV_MATCH' });
   });
+
   nextButton.addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    chrome.tabs.sendMessage(tab.id, { type: 'NEXT_MATCH' });
+    await chrome.tabs.sendMessage(tab.id, { type: 'NEXT_MATCH' });
+  });
+
+  // Listen for match updates from content script
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.type === 'MATCH_UPDATE') {
+      currentIndex = request.currentIndex;
+      totalMatches = request.totalMatches;
+      updateMatchPosition();
+    }
   });
 
   // Initialize

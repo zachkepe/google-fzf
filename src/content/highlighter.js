@@ -1,4 +1,3 @@
-// src/content/highlighter.js
 const HIGHLIGHT_CLASS = 'fuzzy-search-highlight';
 const ACTIVE_HIGHLIGHT_CLASS = 'fuzzy-search-highlight-active';
 
@@ -74,31 +73,37 @@ export function clearHighlights() {
   }
 }
 
-export function scrollToMatch(node) {
-  if (!node) {
-    console.warn('Invalid node passed to scrollToMatch');
+export function scrollToMatch(nodes) {
+  if (!nodes || !Array.isArray(nodes) || nodes.length === 0) {
+    console.warn('Invalid nodes passed to scrollToMatch');
     return;
   }
 
   try {
+    // Clear existing active highlights
     const activeHighlights = document.querySelectorAll(`.${ACTIVE_HIGHLIGHT_CLASS}`);
     activeHighlights.forEach(h => h.classList.remove(ACTIVE_HIGHLIGHT_CLASS));
-    
-    let highlightElement;
-    if (node.nodeType === Node.TEXT_NODE) {
-      highlightElement = node.parentElement;
-    } else {
-      highlightElement = node;
-    }
 
-    if (!highlightElement || !highlightElement.classList.contains(HIGHLIGHT_CLASS)) {
-      console.warn('No highlight element found for node');
+    // Highlight all nodes in the chunk
+    const highlightElements = nodes
+      .map(node => {
+        let element = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+        if (element && element.classList.contains(HIGHLIGHT_CLASS)) {
+          element.classList.add(ACTIVE_HIGHLIGHT_CLASS);
+          return element;
+        }
+        return null;
+      })
+      .filter(el => el !== null);
+
+    if (highlightElements.length === 0) {
+      console.warn('No highlight elements found for nodes');
       return;
     }
 
-    highlightElement.classList.add(ACTIVE_HIGHLIGHT_CLASS);
-
-    const rect = highlightElement.getBoundingClientRect();
+    // Scroll to the first highlight element
+    const firstHighlight = highlightElements[0];
+    const rect = firstHighlight.getBoundingClientRect();
     const isOutOfView = (
       rect.bottom > window.innerHeight ||
       rect.top < 0 ||
@@ -107,7 +112,7 @@ export function scrollToMatch(node) {
     );
 
     if (isOutOfView) {
-      highlightElement.scrollIntoView({
+      firstHighlight.scrollIntoView({
         behavior: 'smooth',
         block: 'center',
         inline: 'nearest'

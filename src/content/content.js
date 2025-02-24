@@ -31,7 +31,6 @@ class ContentSearchManager {
   async processPage() {
     const textLayers = document.querySelectorAll('.textLayer span');
     if (textLayers.length > 0) {
-      // PDF viewer context: Group spans into chunks of ~50 words
       const spans = Array.from(textLayers).filter(span => span.textContent.trim());
       const chunks = [];
       let currentChunk = { text: '', spans: [] };
@@ -55,13 +54,12 @@ class ContentSearchManager {
       }
       return { isPDF: true, chunks };
     }
-    
-    // Regular webpage context: Group text nodes into chunks
+
     const elements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, td, th, div:not(.textLayer)');
     const textNodes = Array.from(elements)
       .flatMap(el => Array.from(el.childNodes))
       .filter(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
-    
+
     const chunks = [];
     let currentChunk = { text: '', nodes: [] };
     let wordCount = 0;
@@ -120,14 +118,21 @@ class ContentSearchManager {
       if (this.currentMatches.length > 0) {
         this.currentMatchIndex = 0;
         const firstMatch = this.currentMatches[0];
-        scrollToMatch(isPDF ? firstMatch.spans[0] : firstMatch.nodes[0]);
+        scrollToMatch(isPDF ? firstMatch.spans : firstMatch.nodes);
       }
-      
+
       chrome.runtime.sendMessage({ 
         type: 'SEARCH_PROGRESS', 
-        count: this.currentMatches.length 
+        count: this.currentMatches.length,
+        currentIndex: this.currentMatchIndex,
+        totalMatches: this.currentMatches.length
       });
-      return this.currentMatches.length;
+      
+      return {
+        matchCount: this.currentMatches.length,
+        currentIndex: this.currentMatchIndex,
+        totalMatches: this.currentMatches.length
+      };
     } catch (error) {
       console.error('Search error:', error);
       throw error;
@@ -140,14 +145,24 @@ class ContentSearchManager {
     if (this.currentMatches.length === 0) return;
     this.currentMatchIndex = (this.currentMatchIndex + 1) % this.currentMatches.length;
     const match = this.currentMatches[this.currentMatchIndex];
-    scrollToMatch(match.spans ? match.spans[0] : match.nodes[0]);
+    scrollToMatch(match.spans || match.nodes);
+    chrome.runtime.sendMessage({
+      type: 'MATCH_UPDATE',
+      currentIndex: this.currentMatchIndex,
+      totalMatches: this.currentMatches.length
+    });
   }
 
   previousMatch() {
     if (this.currentMatches.length === 0) return;
     this.currentMatchIndex = (this.currentMatches.length + this.currentMatchIndex - 1) % this.currentMatches.length;
     const match = this.currentMatches[this.currentMatchIndex];
-    scrollToMatch(match.spans ? match.spans[0] : match.nodes[0]);
+    scrollToMatch(match.spans || match.nodes);
+    chrome.runtime.sendMessage({
+      type: 'MATCH_UPDATE',
+      currentIndex: this.currentMatchIndex,
+      totalMatches: this.currentMatches.length
+    });
   }
 }
 
@@ -167,8 +182,8 @@ if (!window.googleFzfInitialized) {
                 return true;
               }
               if (request.type === 'START_SEARCH') {
-                const matchCount = await searchManager.search(request.query);
-                sendResponse({ success: true, matchCount });
+                const result = await searchManager.search(request.query);
+                sendResponse({ success: true, ...result });
               } else if (request.type === 'NEXT_MATCH') {
                 searchManager.nextMatch();
                 sendResponse({ success: true });
