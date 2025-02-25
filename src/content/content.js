@@ -2,12 +2,14 @@ import SimilaritySearch from '../models/model';
 import { sanitizeInput, validateSearchPattern } from '../utils/sanitizer';
 import RateLimiter from '../utils/rateLimiter';
 import { highlight, clearHighlights, scrollToMatch } from './highlighter';
+import FuzzySearcher from 'fuzzy-search';
 
 let searchManager = null;
 
 class ContentSearchManager {
   constructor() {
     this.similaritySearch = new SimilaritySearch();
+    this.fuzzySearcher = new FuzzySearcher([]);
     this.rateLimiter = new RateLimiter(10, 1);
     this.currentMatches = [];
     this.currentMatchIndex = -1;
@@ -118,27 +120,67 @@ class ContentSearchManager {
       this.currentMatchIndex = -1;
       this.highlightElements = [];
       const { isPDF, chunks } = await this.processPage();
-
-      for (const chunk of chunks) {
-        if (!this.isSearching) break;
-        let isMatch = false;
-
-        switch (mode) {
-          case 'exact': {
-            const queryLower = sanitizedQuery.toLowerCase();
-            const textLower = chunk.text.toLowerCase();
-            if (textLower.includes(queryLower)) {
-              isMatch = true;
-              // For exact mode, find all occurrences within the chunk
-              const elementsToHighlight = [];
-              for (const node of (isPDF ? chunk.spans : chunk.nodes)) {
-                const nodeText = node.textContent.toLowerCase();
-                if (nodeText.includes(queryLower)) {
-                  elementsToHighlight.push(node);
+  
+      if (mode === 'fuzzy') {
+        // Prepare texts for fuzzy search
+        const chunkTexts = chunks.map(chunk => chunk.text);
+        this.fuzzySearcher = new FuzzySearcher(chunkTexts, {
+          caseSensitive: false,
+        });
+        const fuzzyResults = this.fuzzySearcher.search(sanitizedQuery);
+  
+        for (const result of fuzzyResults) {
+          const matchingChunk = chunks.find(chunk => chunk.text === result);
+          if (matchingChunk) {
+            this.currentMatches.push(matchingChunk);
+            const elementsToHighlight = isPDF ? matchingChunk.spans : matchingChunk.nodes;
+            for (const element of elementsToHighlight) {
+              const highlightEl = highlight(element);
+              if (highlightEl) {
+                this.highlightElements.push(highlightEl);
+              }
+            }
+          }
+        }
+      } else {
+        for (const chunk of chunks) {
+          if (!this.isSearching) break;
+          let isMatch = false;
+  
+          switch (mode) {
+            case 'exact': {
+              const queryLower = sanitizedQuery.toLowerCase();
+              const textLower = chunk.text.toLowerCase();
+              if (textLower.includes(queryLower)) {
+                isMatch = true;
+                const elementsToHighlight = [];
+                for (const node of (isPDF ? chunk.spans : chunk.nodes)) {
+                  const nodeText = node.textContent.toLowerCase();
+                  if (nodeText.includes(queryLower)) {
+                    elementsToHighlight.push(node);
+                  }
+                }
+                if (elementsToHighlight.length > 0) {
+                  this.currentMatches.push({ ...chunk, matchedElements: elementsToHighlight });
+                  for (const element of elementsToHighlight) {
+                    const highlightEl = highlight(element);
+                    if (highlightEl) {
+                      this.highlightElements.push(highlightEl);
+                    }
+                  }
                 }
               }
-              if (elementsToHighlight.length > 0) {
-                this.currentMatches.push({ ...chunk, matchedElements: elementsToHighlight });
+              break;
+            }
+            case 'semantic': {
+              const similarity = await this.similaritySearch.findSimilar(
+                sanitizedQuery,
+                chunk.text
+              );
+              isMatch = similarity;
+              if (isMatch) {
+                this.currentMatches.push(chunk);
+                const elementsToHighlight = isPDF ? chunk.spans : chunk.nodes;
                 for (const element of elementsToHighlight) {
                   const highlightEl = highlight(element);
                   if (highlightEl) {
@@ -146,57 +188,18 @@ class ContentSearchManager {
                   }
                 }
               }
+              break;
             }
-            break;
-          }
-          case 'fuzzy': {
-            const fuzzyThreshold = 0.8;
-            const similarity = await this.similaritySearch.findSimilar(
-              sanitizedQuery,
-              chunk.text,
-              fuzzyThreshold
-            );
-            isMatch = similarity;
-            if (isMatch) {
-              this.currentMatches.push(chunk);
-              const elementsToHighlight = isPDF ? chunk.spans : chunk.nodes;
-              for (const element of elementsToHighlight) {
-                const highlightEl = highlight(element);
-                if (highlightEl) {
-                  this.highlightElements.push(highlightEl);
-                }
-              }
-            }
-            break;
-          }
-          case 'semantic':
-          default: {
-            const similarity = await this.similaritySearch.findSimilar(
-              sanitizedQuery,
-              chunk.text
-            );
-            isMatch = similarity;
-            if (isMatch) {
-              this.currentMatches.push(chunk);
-              const elementsToHighlight = isPDF ? chunk.spans : chunk.nodes;
-              for (const element of elementsToHighlight) {
-                const highlightEl = highlight(element);
-                if (highlightEl) {
-                  this.highlightElements.push(highlightEl);
-                }
-              }
-            }
-            break;
           }
         }
       }
-
+  
       if (this.currentMatches.length > 0) {
         this.currentMatchIndex = 0;
         const firstMatch = this.currentMatches[0];
         scrollToMatch(isPDF ? firstMatch.spans : (firstMatch.matchedElements || firstMatch.nodes));
       }
-
+  
       chrome.runtime.sendMessage({ 
         type: 'SEARCH_PROGRESS', 
         count: this.currentMatches.length,
