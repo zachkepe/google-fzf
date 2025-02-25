@@ -110,12 +110,12 @@ class ContentSearchManager {
     }
     try {
       clearHighlights();
-      const sanitizedQuery = sanitizeInput(query);
-      validateSearchPattern(sanitizedQuery);
-      this.isSearching = true;
       this.currentMatches = [];
       this.currentMatchIndex = -1;
       this.highlightElements = [];
+      const sanitizedQuery = sanitizeInput(query);
+      validateSearchPattern(sanitizedQuery);
+      this.isSearching = true;
       const { isPDF, chunks } = await this.processPage();
 
       if (mode === 'fuzzy') {
@@ -131,12 +131,12 @@ class ContentSearchManager {
           const matchingChunk = result.item;
           this.currentMatches.push(matchingChunk);
           const elementsToHighlight = isPDF ? matchingChunk.spans : matchingChunk.nodes;
-          for (const element of elementsToHighlight) {
+          elementsToHighlight.forEach(element => {
             const highlightEl = highlight(element);
             if (highlightEl) {
               this.highlightElements.push(highlightEl);
             }
-          }
+          });
         }
       } else {
         for (const chunk of chunks) {
@@ -158,12 +158,12 @@ class ContentSearchManager {
                 }
                 if (elementsToHighlight.length > 0) {
                   this.currentMatches.push({ ...chunk, matchedElements: elementsToHighlight });
-                  for (const element of elementsToHighlight) {
+                  elementsToHighlight.forEach(element => {
                     const highlightEl = highlight(element);
                     if (highlightEl) {
                       this.highlightElements.push(highlightEl);
                     }
-                  }
+                  });
                 }
               }
               break;
@@ -177,12 +177,12 @@ class ContentSearchManager {
               if (isMatch) {
                 this.currentMatches.push(chunk);
                 const elementsToHighlight = isPDF ? chunk.spans : chunk.nodes;
-                for (const element of elementsToHighlight) {
+                elementsToHighlight.forEach(element => {
                   const highlightEl = highlight(element);
                   if (highlightEl) {
                     this.highlightElements.push(highlightEl);
                   }
-                }
+                });
               }
               break;
             }
@@ -192,9 +192,11 @@ class ContentSearchManager {
 
       if (this.currentMatches.length > 0) {
         this.currentMatchIndex = 0;
-        const firstMatch = this.currentMatches[0];
-        const nodesToHighlight = isPDF ? firstMatch.spans : (firstMatch.matchedElements || firstMatch.nodes);
-        scrollToMatch(nodesToHighlight, 0);
+        this.updateHighlights();
+        this.scrollToCurrentMatch();
+        console.log(`Search found ${this.currentMatches.length} matches`);
+      } else {
+        console.log('No matches found');
       }
 
       chrome.runtime.sendMessage({ 
@@ -205,7 +207,7 @@ class ContentSearchManager {
       });
 
       return {
-        matchCount: this.currentMatches.length,
+        matchCount: this.highlightElements.length, // Count individual highlighted elements
         currentIndex: this.currentMatchIndex,
         totalMatches: this.currentMatches.length
       };
@@ -217,12 +219,34 @@ class ContentSearchManager {
     }
   }
 
+  updateHighlights() {
+    this.highlightElements.forEach((el, index) => {
+      const matchIndex = this.currentMatches.findIndex(match => 
+        (match.spans || match.matchedElements || match.nodes).includes(
+          el.nodeType === Node.TEXT_NODE ? el.parentElement : el
+        )
+      );
+      if (matchIndex === this.currentMatchIndex) {
+        el.classList.add('fuzzy-search-highlight-active');
+      } else {
+        el.classList.remove('fuzzy-search-highlight-active');
+      }
+    });
+  }
+
+  scrollToCurrentMatch() {
+    if (this.currentMatchIndex >= 0 && this.currentMatches.length > 0) {
+      const match = this.currentMatches[this.currentMatchIndex];
+      const nodesToHighlight = match.spans || match.matchedElements || match.nodes;
+      scrollToMatch(nodesToHighlight, 0);
+    }
+  }
+
   nextMatch() {
     if (this.currentMatches.length === 0) return;
     this.currentMatchIndex = (this.currentMatchIndex + 1) % this.currentMatches.length;
-    const match = this.currentMatches[this.currentMatchIndex];
-    const nodesToHighlight = match.spans || match.matchedElements || match.nodes;
-    scrollToMatch(nodesToHighlight, 0); // Always highlight the first node in the chunk as active
+    this.updateHighlights();
+    this.scrollToCurrentMatch();
     chrome.runtime.sendMessage({
       type: 'MATCH_UPDATE',
       currentIndex: this.currentMatchIndex,
@@ -233,9 +257,8 @@ class ContentSearchManager {
   previousMatch() {
     if (this.currentMatches.length === 0) return;
     this.currentMatchIndex = (this.currentMatches.length + this.currentMatchIndex - 1) % this.currentMatches.length;
-    const match = this.currentMatches[this.currentMatchIndex];
-    const nodesToHighlight = match.spans || match.matchedElements || match.nodes;
-    scrollToMatch(nodesToHighlight, 0); // Always highlight the first node in the chunk as active
+    this.updateHighlights();
+    this.scrollToCurrentMatch();
     chrome.runtime.sendMessage({
       type: 'MATCH_UPDATE',
       currentIndex: this.currentMatchIndex,
@@ -250,6 +273,22 @@ if (!window.googleFzfInitialized) {
     try {
       searchManager = new ContentSearchManager();
       await searchManager.initialize();
+
+      // Inject CSS into the page to ensure highlights are visible
+      const style = document.createElement('style');
+      style.textContent = `
+        .fuzzy-search-highlight {
+          background-color: #fff59d !important;
+          padding: 1px;
+        }
+        .fuzzy-search-highlight-active {
+          background-color: #FF9800 !important;
+          color: #fff !important;
+          padding: 1px;
+        }
+      `;
+      document.head.appendChild(style);
+      console.log('Highlight CSS injected');
 
       if (typeof chrome !== 'undefined' && chrome.runtime) {
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -270,6 +309,7 @@ if (!window.googleFzfInitialized) {
                 sendResponse({ success: true });
               } else if (request.type === 'CANCEL_SEARCH') {
                 searchManager.isSearching = false;
+                clearHighlights();
                 sendResponse({ success: true });
               }
             } catch (error) {

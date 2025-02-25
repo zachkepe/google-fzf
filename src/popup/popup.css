@@ -3,36 +3,36 @@ body {
   margin: 0;
   padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background: #121212; /* Very dark gray background */
-  width: 350px; /* Slightly wider to accommodate the design */
+  background: #121212;
+  min-width: 350px;
 }
 
 /* Finder bar container */
 .find-bar {
   display: flex;
   align-items: center;
-  background-color: #1A1A1A; /* Slightly lighter dark gray */
-  border-radius: 8px; /* Rounded corners */
-  padding: 6px 10px; /* Inner padding */
+  background-color: #1A1A1A;
+  border-radius: 8px;
+  padding: 6px 10px;
   box-sizing: border-box;
-  height: 40px; /* Fixed height for consistency */
+  min-height: 40px;
 }
 
 /* Text input field */
 .find-bar input[type="text"] {
-  flex: 1; /* Takes up most of the width */
+  flex: 1;
   border: none;
   outline: none;
-  background: transparent; /* Blends into the finder bar */
+  background: transparent;
   font-size: 14px;
-  padding: 4px 8px; /* Left padding for spacing */
-  color: #E0E0E0; /* Light gray text for contrast */
-  caret-color: #E0E0E0; /* Thin vertical caret */
+  padding: 4px 8px;
+  color: #E0E0E0;
+  caret-color: #E0E0E0;
 }
 
 .find-bar input[type="text"]::placeholder {
-  color: #757575; /* Faint gray for placeholder */
-  opacity: 1; /* Ensure visibility */
+  color: #757575;
+  opacity: 1;
 }
 
 /* Search mode select styling */
@@ -43,7 +43,7 @@ body {
   color: #E0E0E0;
   font-size: 14px;
   margin-left: 8px;
-  -webkit-appearance: none; /* Remove default arrow */
+  -webkit-appearance: none;
   appearance: none;
   padding: 4px;
 }
@@ -57,8 +57,17 @@ body {
 .find-bar .divider {
   width: 1px;
   height: 20px;
-  background-color: #424242; /* Slightly lighter gray */
-  margin: 0 8px; /* Spacing on both sides */
+  background-color: #424242;
+  margin: 0 8px;
+}
+
+/* Match position (X/Y) */
+.find-bar #match-position {
+  color: #E0E0E0;
+  font-size: 14px;
+  margin: 0 8px;
+  min-width: 40px; /* Ensure it doesn’t jump around */
+  text-align: center;
 }
 
 /* Buttons (arrows, checkmark, close) */
@@ -66,35 +75,35 @@ body {
   border: none;
   background: none;
   cursor: pointer;
-  color: #B0B0B0; /* Light gray for icons */
+  color: #B0B0B0;
   font-size: 14px;
   padding: 4px;
-  margin: 0 4px; /* Tight spacing between buttons */
+  margin: 0 4px;
   outline: none;
-  min-width: 20px; /* Ensure consistent size */
+  min-width: 20px;
   text-align: center;
 }
 
 /* Hover and active states for buttons */
 .find-bar button:hover {
-  color: #E0E0E0; /* Brighter on hover */
+  color: #E0E0E0;
 }
 .find-bar button:active {
-  color: #FFFFFF; /* White when active */
+  color: #FFFFFF;
 }
 
 /* Specific button content */
 #prev-match::before {
-  content: "▲"; /* ▲ Up arrow */
+  content: "▲";
 }
 #next-match::before {
-  content: "▼"; /* ▼ Down arrow */
+  content: "▼";
 }
 #confirm-search::before {
-  content: "✓"; /* ✓ Checkmark */
+  content: "✓";
 }
 #cancel-search::before {
-  content: "✕"; /* ✕ Close */
+  content: "✕";
 }
 
 /* Info bar for status and results */
@@ -104,24 +113,25 @@ body {
   margin-top: 4px;
   padding: 0 10px;
   font-size: 12px;
-  color: #B0B0B0; /* Light gray for contrast */
+  color: #B0B0B0;
   box-sizing: border-box;
 }
 
 .error {
-  color: #EF5350 !important; /* Material red for errors */
+  color: #EF5350 !important;
 }
 .success {
-  color: #66BB6A !important; /* Material green for success */
+  color: #66BB6A !important;
 }
 
+/* Highlight classes (for reference, injected into content) */
 .fuzzy-search-highlight {
-  background-color: #fff59d; /* Light yellow like Google's highlight */
+  background-color: #fff59d;
   padding: 1px;
 }
 
 .fuzzy-search-highlight-active {
-  background-color: #FF9800; /* Orange for active match */
+  background-color: #FF9800;
   color: #fff;
   padding: 1px;
 }
