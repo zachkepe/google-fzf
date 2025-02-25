@@ -93,3 +93,14 @@ body {
 .success {
   color: #388e3c !important;
 }
+
+.fuzzy-search-highlight {
+  background-color: #fff59d; /* Light yellow like Google's highlight */
+  padding: 1px;
+}
+
+.fuzzy-search-highlight-active {
+  background-color: #ff9800; /* Orange for active match */
+  color: #fff;
+  padding: 1px;
+}

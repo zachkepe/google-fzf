@@ -32,7 +32,6 @@ class ContentSearchManager {
   async processPage() {
     const textLayers = document.querySelectorAll('.textLayer span');
     if (textLayers.length > 0) {
-      // PDF handling remains unchanged
       const spans = Array.from(textLayers).filter(span => span.textContent.trim());
       const chunks = [];
       let currentChunk = { text: '', spans: [] };
@@ -57,7 +56,6 @@ class ContentSearchManager {
       return { isPDF: true, chunks };
     }
 
-    // Improved HTML text extraction
     const walker = document.createTreeWalker(
       document.body,
       NodeFilter.SHOW_TEXT,
@@ -119,9 +117,8 @@ class ContentSearchManager {
       this.currentMatchIndex = -1;
       this.highlightElements = [];
       const { isPDF, chunks } = await this.processPage();
-  
+
       if (mode === 'fuzzy') {
-        // Use Fuse.js for fuzzy searching with a threshold for more controlled matching.
         const fuseOptions = {
           keys: ['text'],
           includeScore: true,
@@ -129,7 +126,7 @@ class ContentSearchManager {
         };
         const fuse = new Fuse(chunks, fuseOptions);
         const fuseResults = fuse.search(sanitizedQuery);
-  
+
         for (const result of fuseResults) {
           const matchingChunk = result.item;
           this.currentMatches.push(matchingChunk);
@@ -145,7 +142,7 @@ class ContentSearchManager {
         for (const chunk of chunks) {
           if (!this.isSearching) break;
           let isMatch = false;
-  
+
           switch (mode) {
             case 'exact': {
               const queryLower = sanitizedQuery.toLowerCase();
@@ -192,20 +189,21 @@ class ContentSearchManager {
           }
         }
       }
-  
+
       if (this.currentMatches.length > 0) {
         this.currentMatchIndex = 0;
         const firstMatch = this.currentMatches[0];
-        scrollToMatch(isPDF ? firstMatch.spans : (firstMatch.matchedElements || firstMatch.nodes));
+        const nodesToHighlight = isPDF ? firstMatch.spans : (firstMatch.matchedElements || firstMatch.nodes);
+        scrollToMatch(nodesToHighlight, 0);
       }
-  
+
       chrome.runtime.sendMessage({ 
         type: 'SEARCH_PROGRESS', 
         count: this.currentMatches.length,
         currentIndex: this.currentMatchIndex,
         totalMatches: this.currentMatches.length
       });
-      
+
       return {
         matchCount: this.currentMatches.length,
         currentIndex: this.currentMatchIndex,
@@ -223,7 +221,8 @@ class ContentSearchManager {
     if (this.currentMatches.length === 0) return;
     this.currentMatchIndex = (this.currentMatchIndex + 1) % this.currentMatches.length;
     const match = this.currentMatches[this.currentMatchIndex];
-    scrollToMatch(match.spans || match.matchedElements || match.nodes);
+    const nodesToHighlight = match.spans || match.matchedElements || match.nodes;
+    scrollToMatch(nodesToHighlight, 0); // Always highlight the first node in the chunk as active
     chrome.runtime.sendMessage({
       type: 'MATCH_UPDATE',
       currentIndex: this.currentMatchIndex,
@@ -235,7 +234,8 @@ class ContentSearchManager {
     if (this.currentMatches.length === 0) return;
     this.currentMatchIndex = (this.currentMatches.length + this.currentMatchIndex - 1) % this.currentMatches.length;
     const match = this.currentMatches[this.currentMatchIndex];
-    scrollToMatch(match.spans || match.matchedElements || match.nodes);
+    const nodesToHighlight = match.spans || match.matchedElements || match.nodes;
+    scrollToMatch(nodesToHighlight, 0); // Always highlight the first node in the chunk as active
     chrome.runtime.sendMessage({
       type: 'MATCH_UPDATE',
       currentIndex: this.currentMatchIndex,
@@ -250,7 +250,7 @@ if (!window.googleFzfInitialized) {
     try {
       searchManager = new ContentSearchManager();
       await searchManager.initialize();
-      
+
       if (typeof chrome !== 'undefined' && chrome.runtime) {
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           (async () => {
