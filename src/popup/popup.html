@@ -6,16 +6,21 @@
 </head>
 <body>
   <div class="find-bar">
-    <input type="text" id="search-input" placeholder="Find in page..." autocomplete="off">
+    <input type="text" id="search-input" placeholder="Find…" autocomplete="off">
+    <!-- Added search mode select -->
     <select id="search-mode" title="Search Mode">
       <option value="semantic">Semantic</option>
       <option value="exact">Exact</option>
       <option value="fuzzy">Fuzzy</option>
     </select>
+    <div class="divider"></div>
+    <!-- Added match position indicator -->
     <span id="match-position"></span>
-    <button id="prev-match" title="Previous match (Ctrl/Cmd + Shift + K)">▲</button>
-    <button id="next-match" title="Next match (Ctrl/Cmd + K)">▼</button>
-    <button id="cancel-search" title="Close">✕</button>
+    <button id="prev-match" title="Previous match (Shift + Enter)"></button>
+    <button id="next-match" title="Next match (Enter)"></button>
+    <!-- The checkmark button; its function is not yet implemented -->
+    <button id="confirm-search" title="Confirm search"></button>
+    <button id="cancel-search" title="Close"></button>
   </div>
   <div class="info-bar">
     <div id="results-count"></div>

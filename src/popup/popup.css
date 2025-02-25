@@ -3,95 +3,116 @@ body {
   margin: 0;
   padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background: #fff;
-  width: 300px; /* adjust as needed */
+  background: #121212; /* Very dark gray background */
+  width: 350px; /* Slightly wider to accommodate the design */
 }
 
-/* The top bar that imitates Chrome’s find box */
+/* Finder bar container */
 .find-bar {
   display: flex;
   align-items: center;
-  background-color: #fff;
-  border: 1px solid #ccc;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-  padding: 2px 6px;
+  background-color: #1A1A1A; /* Slightly lighter dark gray */
+  border-radius: 8px; /* Rounded corners */
+  padding: 6px 10px; /* Inner padding */
   box-sizing: border-box;
+  height: 40px; /* Fixed height for consistency */
 }
 
-/* The text field for entering the query */
+/* Text input field */
 .find-bar input[type="text"] {
-  flex: 1;
+  flex: 1; /* Takes up most of the width */
   border: none;
   outline: none;
+  background: transparent; /* Blends into the finder bar */
   font-size: 14px;
-  padding: 4px;
-  margin-right: 8px;
+  padding: 4px 8px; /* Left padding for spacing */
+  color: #E0E0E0; /* Light gray text for contrast */
+  caret-color: #E0E0E0; /* Thin vertical caret */
 }
 
-/* Subtle styling for the mode dropdown */
+.find-bar input[type="text"]::placeholder {
+  color: #757575; /* Faint gray for placeholder */
+  opacity: 1; /* Ensure visibility */
+}
+
+/* Search mode select styling */
 .find-bar select {
+  background: transparent;
   border: none;
   outline: none;
-  background-color: transparent;
+  color: #E0E0E0;
   font-size: 14px;
-  margin-right: 8px;
-  cursor: pointer;
+  margin-left: 8px;
+  -webkit-appearance: none; /* Remove default arrow */
+  appearance: none;
+  padding: 4px;
 }
 
-/* Match position (e.g. "1/5") */
-.find-bar span#match-position {
-  font-size: 14px;
-  color: #555;
-  margin-right: 8px;
-  min-width: 40px;
-  text-align: center;
+/* Hide the default arrow in IE */
+.find-bar select::-ms-expand {
+  display: none;
 }
 
-/* Navigation buttons: up/down arrows plus the close (X) */
+/* Divider line */
+.find-bar .divider {
+  width: 1px;
+  height: 20px;
+  background-color: #424242; /* Slightly lighter gray */
+  margin: 0 8px; /* Spacing on both sides */
+}
+
+/* Buttons (arrows, checkmark, close) */
 .find-bar button {
   border: none;
   background: none;
   cursor: pointer;
-  color: #555;
+  color: #B0B0B0; /* Light gray for icons */
   font-size: 14px;
   padding: 4px;
-  margin: 0 2px;
+  margin: 0 4px; /* Tight spacing between buttons */
   outline: none;
+  min-width: 20px; /* Ensure consistent size */
+  text-align: center;
 }
 
-/* Hover and active states for arrow/close buttons */
+/* Hover and active states for buttons */
 .find-bar button:hover {
-  background-color: #f1f3f4;
-  border-radius: 2px;
+  color: #E0E0E0; /* Brighter on hover */
 }
 .find-bar button:active {
-  background-color: #e0e0e0;
+  color: #FFFFFF; /* White when active */
 }
 
-/* Up/Down arrows: just mimic Chrome’s style with ▲ ▼ using unicode */
+/* Specific button content */
 #prev-match::before {
-  content: "\u25B2"; /* ▲ */
+  content: "▲"; /* ▲ Up arrow */
 }
 #next-match::before {
-  content: "\u25BC"; /* ▼ */
+  content: "▼"; /* ▼ Down arrow */
+}
+#confirm-search::before {
+  content: "✓"; /* ✓ Checkmark */
+}
+#cancel-search::before {
+  content: "✕"; /* ✕ Close */
 }
 
-/* A small bar for status messages and result count under the find bar */
+/* Info bar for status and results */
 .info-bar {
   display: flex;
   justify-content: space-between;
   margin-top: 4px;
-  padding: 0 6px;
+  padding: 0 10px;
   font-size: 12px;
-  color: #666;
+  color: #B0B0B0; /* Light gray for contrast */
   box-sizing: border-box;
 }
 
 .error {
-  color: #d32f2f !important;
+  color: #EF5350 !important; /* Material red for errors */
 }
 .success {
-  color: #388e3c !important;
+  color: #66BB6A !important; /* Material green for success */
 }
 
 .fuzzy-search-highlight {
@@ -100,7 +121,7 @@ body {
 }
 
 .fuzzy-search-highlight-active {
-  background-color: #ff9800; /* Orange for active match */
+  background-color: #FF9800; /* Orange for active match */
   color: #fff;
   padding: 1px;
 }

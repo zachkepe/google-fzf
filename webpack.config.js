@@ -46,6 +46,7 @@ module.exports = {
     new CopyPlugin({
       patterns: [
         { from: 'src/popup/popup.html', to: 'popup.html' },
+        { from: 'src/popup/popup.css', to: 'popup.css' },
         { from: 'manifest.json', to: 'manifest.json' },
         { from: 'src/data/embeddings.json', to: 'embeddings.json' },
         { from: 'node_modules/pdfjs-dist/build/pdf.worker.mjs', to: 'pdf.worker.bundle.js' },
