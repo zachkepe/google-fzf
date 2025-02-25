@@ -2,14 +2,13 @@ import SimilaritySearch from '../models/model';
 import { sanitizeInput, validateSearchPattern } from '../utils/sanitizer';
 import RateLimiter from '../utils/rateLimiter';
 import { highlight, clearHighlights, scrollToMatch } from './highlighter';
-import FuzzySearcher from 'fuzzy-search';
+import Fuse from 'fuse.js';
 
 let searchManager = null;
 
 class ContentSearchManager {
   constructor() {
     this.similaritySearch = new SimilaritySearch();
-    this.fuzzySearcher = new FuzzySearcher([]);
     this.rateLimiter = new RateLimiter(10, 1);
     this.currentMatches = [];
     this.currentMatchIndex = -1;
@@ -122,23 +121,23 @@ class ContentSearchManager {
       const { isPDF, chunks } = await this.processPage();
   
       if (mode === 'fuzzy') {
-        // Prepare texts for fuzzy search
-        const chunkTexts = chunks.map(chunk => chunk.text);
-        this.fuzzySearcher = new FuzzySearcher(chunkTexts, {
-          caseSensitive: false,
-        });
-        const fuzzyResults = this.fuzzySearcher.search(sanitizedQuery);
+        // Use Fuse.js for fuzzy searching with a threshold for more controlled matching.
+        const fuseOptions = {
+          keys: ['text'],
+          includeScore: true,
+          threshold: 0.6
+        };
+        const fuse = new Fuse(chunks, fuseOptions);
+        const fuseResults = fuse.search(sanitizedQuery);
   
-        for (const result of fuzzyResults) {
-          const matchingChunk = chunks.find(chunk => chunk.text === result);
-          if (matchingChunk) {
-            this.currentMatches.push(matchingChunk);
-            const elementsToHighlight = isPDF ? matchingChunk.spans : matchingChunk.nodes;
-            for (const element of elementsToHighlight) {
-              const highlightEl = highlight(element);
-              if (highlightEl) {
-                this.highlightElements.push(highlightEl);
-              }
+        for (const result of fuseResults) {
+          const matchingChunk = result.item;
+          this.currentMatches.push(matchingChunk);
+          const elementsToHighlight = isPDF ? matchingChunk.spans : matchingChunk.nodes;
+          for (const element of elementsToHighlight) {
+            const highlightEl = highlight(element);
+            if (highlightEl) {
+              this.highlightElements.push(highlightEl);
             }
           }
         }

@@ -1,5 +1,5 @@
 import * as tf from '@tensorflow/tfjs';
-import FuzzySearch from 'fuzzy-search';
+/* Removed FuzzySearch import as we are now using Fuse.js */
 
 const SIMILARITY_THRESHOLD = 0.8;
 const MAX_RESULTS = 50;
@@ -117,4 +117,75 @@ async function performSearch(query, chunks) {
     console.error('Search error:', error);
     return [];
   }
+}
+
+async function getTextEmbedding(text) {
+  try {
+    if (embeddingCache.has(text)) {
+      return embeddingCache.get(text);
+    }
+    if (embeddingCache.size > 1000) embeddingCache.clear();
+
+    const tokens = tokenize(text);
+    const validIndices = tokens
+      .map(token => wordToIndex[token])
+      .filter(index => index !== undefined && index < VOCAB_SIZE);
+
+    if (validIndices.length === 0) {
+      console.log(`No embeddings found for text: "${text}"`);
+      return null;
+    }
+
+    return tf.tidy(() => {
+      const embeddingsArr = validIndices.map(index => 
+        embeddings.slice([index, 0], [1, EMBEDDING_DIM])
+      );
+      const stacked = tf.concat(embeddingsArr, 0);
+      const meanEmbedding = stacked.mean(0);
+      embeddingCache.set(text, meanEmbedding);
+      return meanEmbedding;
+    });
+  } catch (error) {
+    console.error('Error in getTextEmbedding:', error);
+    return null;
+  }
+}
+
+async function getSimilarity(queryEmbedding, text) {
+  const textEmbedding = await getTextEmbedding(text);
+  if (!textEmbedding) return 0;
+  return tf.tidy(() => {
+    const dotProduct = queryEmbedding.dot(textEmbedding);
+    const normA = queryEmbedding.norm();
+    const normB = textEmbedding.norm();
+    const similarity = dotProduct.div(normA.mul(normB)).dataSync()[0];
+    return isNaN(similarity) ? 0 : similarity;
+  });
+}
+
+function tokenize(text) {
+  const cleanedText = text.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+  return cleanedText.split(/\s+/).filter(word => word.length > 2);
+}
+
+function cosineSimilarity(embedding1, embedding2) {
+  if (!embedding1 || !embedding2) return 0;
+  
+  return tf.tidy(() => {
+    const dotProduct = embedding1.dot(embedding2);
+    const norm1 = embedding1.norm();
+    const norm2 = embedding2.norm();
+    const similarity = dotProduct.div(norm1.mul(norm2)).dataSync()[0];
+    return isNaN(similarity) ? 0 : similarity;
+  });
+}
+
+function dispose() {
+  if (embeddings) {
+    embeddings.dispose();
+  }
+  for (const tensor of embeddingCache.values()) {
+    tensor.dispose();
+  }
+  embeddingCache.clear();
 }
