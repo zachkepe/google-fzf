@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const searchInput = document.getElementById('search-input');
+  const searchMode = document.getElementById('search-mode');
   const resultsCount = document.getElementById('results-count');
   const status = document.getElementById('status');
   const cancelButton = document.getElementById('cancel-search');
@@ -66,7 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  async function performSearch(query) {
+  async function performSearch(query, mode) {
     if (!query.trim()) {
       resultsCount.textContent = '';
       matchPosition.textContent = '';
@@ -80,7 +81,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!await checkContentScript()) {
         return;
       }
-      const response = await chrome.tabs.sendMessage(tab.id, { type: 'START_SEARCH', query });
+      const response = await chrome.tabs.sendMessage(tab.id, { 
+        type: 'START_SEARCH', 
+        query,
+        mode 
+      });
       if (response?.success) {
         currentIndex = response.currentIndex;
         totalMatches = response.totalMatches;
@@ -98,7 +103,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   searchInput.addEventListener('input', (e) => {
     clearTimeout(debounceTimeout);
-    debounceTimeout = setTimeout(() => performSearch(e.target.value), 300);
+    debounceTimeout = setTimeout(() => performSearch(e.target.value, searchMode.value), 300);
+  });
+
+  searchMode.addEventListener('change', () => {
+    if (searchInput.value) {
+      performSearch(searchInput.value, searchMode.value);
+    }
   });
 
   cancelButton.addEventListener('click', async () => {

@@ -31,6 +31,7 @@ class ContentSearchManager {
   async processPage() {
     const textLayers = document.querySelectorAll('.textLayer span');
     if (textLayers.length > 0) {
+      // PDF handling remains unchanged
       const spans = Array.from(textLayers).filter(span => span.textContent.trim());
       const chunks = [];
       let currentChunk = { text: '', spans: [] };
@@ -55,10 +56,27 @@ class ContentSearchManager {
       return { isPDF: true, chunks };
     }
 
-    const elements = document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, td, th, div:not(.textLayer)');
-    const textNodes = Array.from(elements)
-      .flatMap(el => Array.from(el.childNodes))
-      .filter(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+    // Improved HTML text extraction
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: node => {
+          const parent = node.parentElement;
+          if (!parent || parent.closest('.textLayer')) return NodeFilter.FILTER_REJECT;
+          const style = window.getComputedStyle(parent);
+          return (style.display !== 'none' && style.visibility !== 'hidden' && node.textContent.trim())
+            ? NodeFilter.FILTER_ACCEPT
+            : NodeFilter.FILTER_REJECT;
+        }
+      }
+    );
+
+    const textNodes = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      textNodes.push(node);
+    }
 
     const chunks = [];
     let currentChunk = { text: '', nodes: [] };
@@ -66,6 +84,7 @@ class ContentSearchManager {
 
     for (const node of textNodes) {
       const nodeText = node.textContent.trim();
+      if (!nodeText) continue;
       const words = nodeText.split(/\s+/);
       currentChunk.text += nodeText + ' ';
       currentChunk.nodes.push(node);
@@ -83,7 +102,7 @@ class ContentSearchManager {
     return { isPDF: false, chunks };
   }
 
-  async search(query) {
+  async search(query, mode = 'semantic') {
     if (!this.isInitialized) {
       await this.initialize();
     }
@@ -102,15 +121,72 @@ class ContentSearchManager {
 
       for (const chunk of chunks) {
         if (!this.isSearching) break;
-        const isSimilar = await this.similaritySearch.findSimilar(sanitizedQuery, chunk.text);
-        if (isSimilar) {
-          this.currentMatches.push(chunk);
-          const elementsToHighlight = isPDF ? chunk.spans : chunk.nodes;
-          for (const element of elementsToHighlight) {
-            const highlightEl = highlight(element);
-            if (highlightEl) {
-              this.highlightElements.push(highlightEl);
+        let isMatch = false;
+
+        switch (mode) {
+          case 'exact': {
+            const queryLower = sanitizedQuery.toLowerCase();
+            const textLower = chunk.text.toLowerCase();
+            if (textLower.includes(queryLower)) {
+              isMatch = true;
+              // For exact mode, find all occurrences within the chunk
+              const elementsToHighlight = [];
+              for (const node of (isPDF ? chunk.spans : chunk.nodes)) {
+                const nodeText = node.textContent.toLowerCase();
+                if (nodeText.includes(queryLower)) {
+                  elementsToHighlight.push(node);
+                }
+              }
+              if (elementsToHighlight.length > 0) {
+                this.currentMatches.push({ ...chunk, matchedElements: elementsToHighlight });
+                for (const element of elementsToHighlight) {
+                  const highlightEl = highlight(element);
+                  if (highlightEl) {
+                    this.highlightElements.push(highlightEl);
+                  }
+                }
+              }
             }
+            break;
+          }
+          case 'fuzzy': {
+            const fuzzyThreshold = 0.8;
+            const similarity = await this.similaritySearch.findSimilar(
+              sanitizedQuery,
+              chunk.text,
+              fuzzyThreshold
+            );
+            isMatch = similarity;
+            if (isMatch) {
+              this.currentMatches.push(chunk);
+              const elementsToHighlight = isPDF ? chunk.spans : chunk.nodes;
+              for (const element of elementsToHighlight) {
+                const highlightEl = highlight(element);
+                if (highlightEl) {
+                  this.highlightElements.push(highlightEl);
+                }
+              }
+            }
+            break;
+          }
+          case 'semantic':
+          default: {
+            const similarity = await this.similaritySearch.findSimilar(
+              sanitizedQuery,
+              chunk.text
+            );
+            isMatch = similarity;
+            if (isMatch) {
+              this.currentMatches.push(chunk);
+              const elementsToHighlight = isPDF ? chunk.spans : chunk.nodes;
+              for (const element of elementsToHighlight) {
+                const highlightEl = highlight(element);
+                if (highlightEl) {
+                  this.highlightElements.push(highlightEl);
+                }
+              }
+            }
+            break;
           }
         }
       }
@@ -118,7 +194,7 @@ class ContentSearchManager {
       if (this.currentMatches.length > 0) {
         this.currentMatchIndex = 0;
         const firstMatch = this.currentMatches[0];
-        scrollToMatch(isPDF ? firstMatch.spans : firstMatch.nodes);
+        scrollToMatch(isPDF ? firstMatch.spans : (firstMatch.matchedElements || firstMatch.nodes));
       }
 
       chrome.runtime.sendMessage({ 
@@ -145,7 +221,7 @@ class ContentSearchManager {
     if (this.currentMatches.length === 0) return;
     this.currentMatchIndex = (this.currentMatchIndex + 1) % this.currentMatches.length;
     const match = this.currentMatches[this.currentMatchIndex];
-    scrollToMatch(match.spans || match.nodes);
+    scrollToMatch(match.spans || match.matchedElements || match.nodes);
     chrome.runtime.sendMessage({
       type: 'MATCH_UPDATE',
       currentIndex: this.currentMatchIndex,
@@ -157,7 +233,7 @@ class ContentSearchManager {
     if (this.currentMatches.length === 0) return;
     this.currentMatchIndex = (this.currentMatches.length + this.currentMatchIndex - 1) % this.currentMatches.length;
     const match = this.currentMatches[this.currentMatchIndex];
-    scrollToMatch(match.spans || match.nodes);
+    scrollToMatch(match.spans || match.matchedElements || match.nodes);
     chrome.runtime.sendMessage({
       type: 'MATCH_UPDATE',
       currentIndex: this.currentMatchIndex,
@@ -182,7 +258,7 @@ if (!window.googleFzfInitialized) {
                 return true;
               }
               if (request.type === 'START_SEARCH') {
-                const result = await searchManager.search(request.query);
+                const result = await searchManager.search(request.query, request.mode);
                 sendResponse({ success: true, ...result });
               } else if (request.type === 'NEXT_MATCH') {
                 searchManager.nextMatch();

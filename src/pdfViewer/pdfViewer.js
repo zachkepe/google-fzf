@@ -6,9 +6,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('pdf.worker.bundl
 async function renderPDF() {
   const urlParams = new URLSearchParams(window.location.search);
   let pdfData;
-  
+
   if (urlParams.has('local')) {
-    // For locally uploaded PDFs via the popup
     pdfData = await fetchLocalPDFData();
   } else {
     const pdfUrl = urlParams.get('file');
@@ -22,26 +21,24 @@ async function renderPDF() {
       pdfData = await fetchRemotePDF(pdfUrl);
     }
   }
-  
+
   console.log('PDF data received, size:', pdfData.byteLength);
 
   try {
     const pdf = await pdfjsLib.getDocument({
       data: pdfData,
       cMapUrl: chrome.runtime.getURL('node_modules/pdfjs-dist/cmaps/'),
-      cMapPacked: true
+      cMapPacked: true,
     }).promise;
 
     const container = document.getElementById('pdf-container');
     container.style.position = 'relative';
-    container.innerHTML = ''; // Clear previous content if any
+    container.innerHTML = '';
 
-    // Render each page in its own container
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
       const page = await pdf.getPage(pageNum);
       const viewport = page.getViewport({ scale: 1.5 });
-      
-      // Create a wrapper div for the page
+
       const pageContainer = document.createElement('div');
       pageContainer.className = 'pdf-page';
       pageContainer.style.position = 'relative';
@@ -49,14 +46,12 @@ async function renderPDF() {
       pageContainer.style.height = `${viewport.height}px`;
       pageContainer.style.marginBottom = '10px';
 
-      // Create and render the canvas
       const canvas = document.createElement('canvas');
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       const context = canvas.getContext('2d');
       await page.render({ canvasContext: context, viewport }).promise;
-      
-      // Create the text layer div (positioned absolutely within the page container)
+
       const textLayerDiv = document.createElement('div');
       textLayerDiv.className = 'textLayer';
       textLayerDiv.style.position = 'absolute';
@@ -64,21 +59,65 @@ async function renderPDF() {
       textLayerDiv.style.left = '0';
       textLayerDiv.style.height = `${viewport.height}px`;
       textLayerDiv.style.width = `${viewport.width}px`;
-      
-      // Append canvas and text layer to the page container
+
       pageContainer.appendChild(canvas);
       pageContainer.appendChild(textLayerDiv);
       container.appendChild(pageContainer);
 
-      // Render text layer using PDF.js
-      const textContent = await page.getTextContent({ normalizeWhitespace: true });
-      const textLayer = new pdfjsLib.TextLayer({
-        textContent,
-        container: textLayerDiv,
-        viewport,
-        textDivs: []
-      });
-      textLayer.render();
+      // Get textContentSource first - this is the proper way in newer PDF.js versions
+      try {
+        const textContentSource = page.streamTextContent({ normalizeWhitespace: true });
+        
+        try {
+          const textLayer = new pdfjsLib.TextLayer({
+            textContentSource, // Use textContentSource instead of textContent
+            container: textLayerDiv,
+            viewport,
+            page,
+          });
+          await textLayer.render();
+          console.log(`Text layer rendered for page ${pageNum}`);
+        } catch (textError) {
+          console.error(`Failed to render text layer with textContentSource for page ${pageNum}:`, textError);
+          
+          // Fallback to the older API approach
+          try {
+            const textContent = await page.getTextContent({ normalizeWhitespace: true });
+            console.log('Text content for page', pageNum, ':', textContent);
+            
+            const textLayer = new pdfjsLib.TextLayer({
+              textContent, // Fallback to older API
+              container: textLayerDiv,
+              viewport,
+              page, // Optional: pass page for newer versions if needed
+            });
+            await textLayer.render();
+            console.log(`Text layer rendered for page ${pageNum} using fallback method`);
+          } catch (fallbackError) {
+            console.error(`Fallback text layer rendering also failed:`, fallbackError);
+            textLayerDiv.innerHTML = '<span style="color: orange;">Text layer rendering failed</span>';
+          }
+        }
+      } catch (sourceError) {
+        console.error(`Error getting text content source for page ${pageNum}:`, sourceError);
+        // If streamTextContent failed, go straight to fallback
+        try {
+          const textContent = await page.getTextContent({ normalizeWhitespace: true });
+          console.log('Text content for page', pageNum, ':', textContent);
+          
+          const textLayer = new pdfjsLib.TextLayer({
+            textContent,
+            container: textLayerDiv,
+            viewport,
+            page,
+          });
+          await textLayer.render();
+          console.log(`Text layer rendered for page ${pageNum} using fallback method`);
+        } catch (fallbackError) {
+          console.error(`Fallback text layer rendering also failed:`, fallbackError);
+          textLayerDiv.innerHTML = '<span style="color: orange;">Text layer rendering failed</span>';
+        }
+      }
     }
 
     console.log('PDF rendered successfully');
@@ -91,7 +130,7 @@ async function renderPDF() {
         <button id="downloadPdf">Download PDF</button>
       </p>
     `;
-    document.getElementById('downloadPdf').addEventListener('click', () => {
+    document.getElementById('downloadPdf')?.addEventListener('click', () => {
       chrome.runtime.sendMessage({ type: 'DOWNLOAD_PDF', url: urlParams.get('file') });
     });
   }
@@ -126,7 +165,6 @@ function fetchRemotePDF(url) {
       } else if (!response.data) {
         reject(new Error('Invalid PDF data received from background script'));
       } else {
-        // Decode base64 string to ArrayBuffer
         const binaryString = atob(response.data);
         const len = binaryString.length;
         const bytes = new Uint8Array(len);
@@ -151,7 +189,6 @@ function fetchLocalPDFData() {
       } else if (!response.data) {
         reject(new Error('Invalid PDF data received from background script'));
       } else {
-        // Decode base64 string to ArrayBuffer
         const binaryString = atob(response.data);
         const len = binaryString.length;
         const bytes = new Uint8Array(len);

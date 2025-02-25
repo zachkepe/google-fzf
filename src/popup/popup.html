@@ -1,3 +1,4 @@
+<!-- src/popup/popup.html -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -6,6 +7,13 @@
 </head>
 <body>
     <div class="container">
+        <div class="mode-selector">
+            <select id="search-mode">
+                <option value="semantic">Semantic</option>
+                <option value="exact">Exact</option>
+                <option value="fuzzy">Fuzzy</option>
+            </select>
+        </div>
         <input type="text" id="search-input" placeholder="Enter search term...">
         <div class="navigation">
             <button id="prev-match">↑ Previous (Shift+Enter)</button>
