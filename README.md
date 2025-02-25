@@ -19,3 +19,17 @@ To run the extension, follow these steps:
 4. Enable Developer Mode.
 5. Click on "Load unpacked" and select the `dist` folder.
 6. The extension should now be running.
+
+## Contributions
+GoogleFZF welcomes contributions from the community! If you'd like to contribute:
+
+1. Fork the repository on GitHub.
+2. Make your changes in your forked repository.
+3. Submit a pull request with a clear description of your improvements or fixes.
+
+All contributions are appreciated, whether they're bug fixes, new features, or documentation improvements.
+
+## Shortcuts
+Once the extension is running, you can use the following keyboard shortcuts in the search popup:
+- `Enter`: Navigate to the next search match.
+- `Shift + Enter`: Navigate to the previous search match.

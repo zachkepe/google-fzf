@@ -4,48 +4,48 @@
   "version": "1.1.0",
   "description": "AI-powered fuzzy search for web pages and PDFs using in-browser ML",
   "permissions": [
-    "activeTab",
-    "scripting",
-    "tabs",
-    "webNavigation",
-    "webRequest",
-    "downloads"
+      "activeTab",
+      "scripting",
+      "tabs",
+      "webNavigation",
+      "webRequest",
+      "downloads"
   ],
   "host_permissions": [
-    "http://*/*",
-    "https://*/*",
-    "file://*/*"
-  ],
-  "background": {
-    "service_worker": "background.bundle.js"
-  },
-  "content_scripts": [{
-    "matches": [
       "http://*/*",
       "https://*/*",
       "file://*/*"
-    ],
-    "js": ["content.bundle.js"]
+  ],
+  "background": {
+      "service_worker": "background.bundle.js"
+  },
+  "content_scripts": [{
+      "matches": [
+          "http://*/*",
+          "https://*/*",
+          "file://*/*"
+      ],
+      "js": ["content.bundle.js"]
   }],
   "action": {
-    "default_popup": "popup.html"
+      "default_popup": "popup.html"
   },
   "web_accessible_resources": [{
-    "resources": [
-      "embeddings.json",
-      "pdf.worker.bundle.js",
-      "pdfViewer.html",
-      "pdfViewer.bundle.js"
-    ],
-    "matches": ["<all_urls>"]
+      "resources": [
+          "embeddings.json",
+          "pdf.worker.bundle.js",
+          "pdfViewer.html",
+          "pdfViewer.bundle.js"
+      ],
+      "matches": ["<all_urls>"]
   }],
   "commands": {
-    "_execute_action": {
-      "suggested_key": {
-        "default": "Ctrl+K",
-        "mac": "Command+K"
-      },
-      "description": "Open FZF Search"
-    }
+      "_execute_action": {
+          "suggested_key": {
+              "default": "Ctrl+K",
+              "mac": "Command+K"
+          },
+          "description": "Open FZF Search"
+      }
   }
 }

@@ -1,9 +1,9 @@
 module.exports = {
-    presets: [
+  presets: [
       ['@babel/preset-env', {
-        targets: {
-          chrome: "88"
-        }
+          targets: {
+              chrome: "88"
+          }
       }]
-    ]
-  };
+  ]
+};

@@ -1,28 +1,55 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <link rel="stylesheet" href="popup.css">
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="popup.css">
+    <title>Search Popup</title>
 </head>
 <body>
-  <div class="find-bar">
-    <input type="text" id="search-input" placeholder="Find…" autocomplete="off">
-    <select id="search-mode" title="Search Mode">
-      <option value="semantic">Semantic</option>
-      <option value="exact">Exact</option>
-      <option value="fuzzy">Fuzzy</option>
-    </select>
-    <div class="divider"></div>
-    <span id="match-position"></span>
-    <button id="prev-match" title="Previous match (Shift + Enter)"></button>
-    <button id="next-match" title="Next match (Enter)"></button>
-    <button id="confirm-search" title="Confirm search"></button>
-    <button id="cancel-search" title="Close"></button>
-  </div>
-  <div class="info-bar">
-    <div id="results-count"></div>
-    <div id="status"></div>
-  </div>
-  <script src="popup.bundle.js"></script>
+    <div class="find-bar" role="search">
+        <input 
+            type="text" 
+            id="search-input" 
+            placeholder="Find…" 
+            autocomplete="off" 
+            aria-label="Search text input"
+        >
+        <select 
+            id="search-mode" 
+            title="Search Mode" 
+            aria-label="Search mode selection"
+        >
+            <option value="semantic">Semantic</option>
+            <option value="exact">Exact</option>
+            <option value="fuzzy">Fuzzy</option>
+        </select>
+        <div class="divider" role="separator"></div>
+        <span id="match-position" aria-live="polite"></span>
+        <button 
+            id="prev-match" 
+            title="Previous match (Shift + Enter)" 
+            aria-label="Previous match"
+        ></button>
+        <button 
+            id="next-match" 
+            title="Next match (Enter)" 
+            aria-label="Next match"
+        ></button>
+        <button 
+            id="confirm-search" 
+            title="Confirm search" 
+            aria-label="Confirm search"
+        ></button>
+        <button 
+            id="cancel-search" 
+            title="Close" 
+            aria-label="Cancel search"
+        ></button>
+    </div>
+    <div class="info-bar" role="status">
+        <div id="results-count" aria-live="polite"></div>
+        <div id="status" aria-live="polite"></div>
+    </div>
+    <script src="popup.bundle.js"></script>
 </body>
 </html>
