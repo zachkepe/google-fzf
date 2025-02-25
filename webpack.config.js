@@ -52,7 +52,8 @@ module.exports = {
                 { from: 'manifest.json', to: 'manifest.json' },
                 { from: 'src/data/embeddings.json', to: 'embeddings.json' },
                 { from: 'node_modules/pdfjs-dist/build/pdf.worker.mjs', to: 'pdf.worker.bundle.js' },
-                { from: 'src/pdfViewer/pdfViewer.html', to: 'pdfViewer.html' }
+                { from: 'src/pdfViewer/pdfViewer.html', to: 'pdfViewer.html' },
+                { from: 'icons', to: 'icons' }
             ]
         })
     ]

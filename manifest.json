@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Google FZF Search",
   "version": "1.1.0",
-  "description": "AI-powered fuzzy search for web pages and PDFs using in-browser ML",
+  "description": "Enhance your browsing with AI-powered fuzzy search. Find similar words and phrases on web pages and PDFs, all running locally in your browser.",
   "permissions": [
       "activeTab",
       "scripting",
@@ -28,7 +28,19 @@
       "js": ["content.bundle.js"]
   }],
   "action": {
-      "default_popup": "popup.html"
+      "default_popup": "popup.html",
+      "default_icon": {
+          "16": "icons/icon16.png",
+          "32": "icons/icon32.png",
+          "48": "icons/icon48.png",
+          "128": "icons/icon128.png"
+      }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   },
   "web_accessible_resources": [{
       "resources": [
