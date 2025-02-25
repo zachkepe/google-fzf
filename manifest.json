@@ -42,8 +42,8 @@
   "commands": {
     "_execute_action": {
       "suggested_key": {
-        "default": "Ctrl+Shift+F",
-        "mac": "Command+Shift+F"
+        "default": "Ctrl+K",
+        "mac": "Command+K"
       },
       "description": "Open FZF Search"
     }

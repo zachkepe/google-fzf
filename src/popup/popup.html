@@ -1,30 +1,26 @@
-<!-- src/popup/popup.html -->
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <link rel="stylesheet" href="popup.css">
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-    <div class="container">
-        <div class="mode-selector">
-            <select id="search-mode">
-                <option value="semantic">Semantic</option>
-                <option value="exact">Exact</option>
-                <option value="fuzzy">Fuzzy</option>
-            </select>
-        </div>
-        <input type="text" id="search-input" placeholder="Enter search term...">
-        <div class="navigation">
-            <button id="prev-match">↑ Previous (Shift+Enter)</button>
-            <span id="match-position"></span>
-            <button id="next-match">↓ Next (Enter)</button>
-            <button id="cancel-search">Cancel</button>
-        </div>
-        <div id="results-count"></div>
-        <div id="status"></div>
-        <input type="file" id="pdf-file-input" accept=".pdf" style="margin-top: 10px;">
-    </div>
-    <script src="popup.bundle.js"></script>
+  <div class="find-bar">
+    <input type="text" id="search-input" placeholder="Find in page..." autocomplete="off">
+    <select id="search-mode" title="Search Mode">
+      <option value="semantic">Semantic</option>
+      <option value="exact">Exact</option>
+      <option value="fuzzy">Fuzzy</option>
+    </select>
+    <span id="match-position"></span>
+    <button id="prev-match" title="Previous match (Ctrl/Cmd + Shift + K)">▲</button>
+    <button id="next-match" title="Next match (Ctrl/Cmd + K)">▼</button>
+    <button id="cancel-search" title="Close">✕</button>
+  </div>
+  <div class="info-bar">
+    <div id="results-count"></div>
+    <div id="status"></div>
+  </div>
+  <script src="popup.bundle.js"></script>
 </body>
 </html>
