@@ -15,20 +15,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Use chrome.storage.local if available; otherwise log a warning.
     const storageAvailable = (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local);
-    if (storageAvailable) {
-        chrome.storage.local.get(['fzfLastMode', 'fzfLastQuery'], (result) => {
-            if (result.fzfLastMode) {
-                searchMode.value = result.fzfLastMode; // Restore saved mode
-            }
-            if (result.fzfLastQuery) {
-                searchInput.value = result.fzfLastQuery; // Restore saved query
-            }
-            // After setting stored values, check if there is a user selection.
+
+    // First, check if the active page is searchable.
+    const pageSearchable = await isSearchablePage();
+    if (pageSearchable) {
+        if (storageAvailable) {
+            chrome.storage.local.get(['fzfLastMode', 'fzfLastQuery'], (result) => {
+                if (result.fzfLastMode) {
+                    searchMode.value = result.fzfLastMode; // Restore saved mode
+                }
+                if (result.fzfLastQuery) {
+                    searchInput.value = result.fzfLastQuery; // Restore saved query
+                }
+                // After restoring stored values, check for any selection on the page.
+                checkForSelection();
+            });
+        } else {
+            console.warn('chrome.storage.local not available, using default mode and query.');
             checkForSelection();
-        });
+        }
     } else {
-        console.warn('chrome.storage.local not available, using default mode and query.');
-        checkForSelection();
+        // If the page is not searchable, disable input and buttons.
+        searchInput.disabled = true;
+        searchInput.placeholder = 'Cannot search page';
+        confirmButton.disabled = true;
     }
 
     /**
@@ -87,12 +97,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return false;
             }
             const url = tab.url;
-            // Do not allow search on internal pages (like chrome://, about://, etc.) or on the webstore.
+            // Do not allow search on internal pages (chrome://, about://, etc.) or on the webstore.
             if (/^(chrome|about|edge|brave):\/\//i.test(url) || /chrome.google.com\/webstore/.test(url)) {
                 console.log('Search is not available on this page');
-                searchInput.disabled = true;
-                searchInput.placeholder = 'Cannot search page';
-                confirmButton.disabled = true;
                 return false;
             }
             return true;
