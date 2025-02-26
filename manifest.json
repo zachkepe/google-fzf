@@ -9,7 +9,8 @@
       "tabs",
       "webNavigation",
       "webRequest",
-      "downloads"
+      "downloads",
+      "commands"
     ],
     "host_permissions": [
       "http://*/*",
@@ -56,8 +57,8 @@
     "commands": {
       "_execute_action": {
         "suggested_key": {
-          "default": "Ctrl+Shift+F",
-          "mac": "Command+Shift+F"
+          "default": "Ctrl+Shift+S",
+          "mac": "Command+Shift+S"
         },
         "description": "Open FZF Search"
       }

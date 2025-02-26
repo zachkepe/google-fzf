@@ -119,3 +119,11 @@ chrome.webNavigation.onBeforeNavigate.addListener(
     },
     { url: [{ urlMatches: '.*\\.pdf$' }] }
 );
+
+// Opens the popup.
+chrome.commands.onCommand.addListener((command) => {
+    if (command === '_execute_action') {
+        chrome.action.openPopup();
+        console.log('Command+Shift+S triggered, opening popup');
+    }
+});
