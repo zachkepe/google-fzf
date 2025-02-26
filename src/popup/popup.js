@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const prevButton = document.getElementById('prev-match');
     const nextButton = document.getElementById('next-match');
     const matchPosition = document.getElementById('match-position');
-    const confirmButton = document.getElementById('confirm-search'); // Checkmark button
+    const confirmButton = document.getElementById('confirm-search');
 
     /** @type {number|undefined} Debounce timeout ID */
     let debounceTimeout;
@@ -14,12 +14,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     let totalMatches = 0;
 
     // Use chrome.storage.local if available; otherwise log a warning.
-    const storageAvailable = chrome && chrome.storage && chrome.storage.local;
+    const storageAvailable = (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local);
     if (storageAvailable) {
         chrome.storage.local.get(['fzfLastMode', 'fzfLastQuery'], (result) => {
             if (result.fzfLastMode) {
                 searchMode.value = result.fzfLastMode; // Restore saved mode
-            } // If not saved, it will fall back to the default (e.g. "semantic" in your HTML)
+            }
             if (result.fzfLastQuery) {
                 searchInput.value = result.fzfLastQuery; // Restore saved query
             }
@@ -206,7 +206,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 updateMatchPosition();
                 // Save the query for next time if storage is available.
                 if (storageAvailable) {
-                    chrome.storage.local.set({ fzfLastQuery: query });
+                    chrome.storage.local.set({ fzfLastQuery: query }, () => {
+                        if (chrome.runtime.lastError) {
+                            console.warn('Error saving query:', chrome.runtime.lastError.message);
+                        }
+                    });
                 }
             } else {
                 console.log(response?.error || 'Search failed');
@@ -254,7 +258,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     searchMode.addEventListener('change', () => {
         if (storageAvailable) {
-            chrome.storage.local.set({ fzfLastMode: searchMode.value });
+            chrome.storage.local.set({ fzfLastMode: searchMode.value }, () => {
+                if (chrome.runtime.lastError) {
+                    console.warn('Error saving mode:', chrome.runtime.lastError.message);
+                }
+            });
+        } else {
+            console.warn('chrome.storage.local not available, mode not saved.');
         }
         if (searchInput.value) performSearch(searchInput.value, searchMode.value);
     });

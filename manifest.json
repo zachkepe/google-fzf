@@ -10,7 +10,8 @@
       "webNavigation",
       "webRequest",
       "downloads",
-      "commands"
+      "commands",
+      "storage"
     ],
     "host_permissions": [
       "http://*/*",

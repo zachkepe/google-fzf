@@ -10,47 +10,49 @@
     <title>Search Popup</title>
 </head>
 <body>
-    <div class="find-bar" role="search">
-        <input 
-            type="text" 
-            id="search-input" 
-            placeholder="Find…" 
-            autocomplete="off" 
-            aria-label="Search text input"
-        >
-        <select 
-            id="search-mode" 
-            title="Search Mode" 
-            aria-label="Search mode selection"
-        >
-            <option value="semantic">Semantic</option>
-            <option value="exact">Exact</option>
-            <option value="fuzzy">Fuzzy</option>
-        </select>
-        <div class="divider" role="separator"></div>
-        <span id="match-position" aria-live="polite"></span>
-        <button 
-            id="prev-match" 
-            title="Previous match (Shift + Enter)" 
-            aria-label="Previous match"
-        ></button>
-        <button 
-            id="next-match" 
-            title="Next match (Enter)" 
-            aria-label="Next match"
-        ></button>
-        <button 
-            id="confirm-search" 
-            title="Confirm search" 
-            aria-label="Confirm search"
-        ></button>
-        <button 
-            id="cancel-search" 
-            title="Close" 
-            aria-label="Cancel search"
-        ></button>
+    <!-- Wrap content in a container for proper rounded corners -->
+    <div id="popup-container">
+        <div class="find-bar" role="search">
+            <input 
+                type="text" 
+                id="search-input" 
+                placeholder="Find…" 
+                autocomplete="off" 
+                aria-label="Search text input"
+            >
+            <select 
+                id="search-mode" 
+                title="Search Mode" 
+                aria-label="Search mode selection"
+            >
+                <option value="semantic">Semantic</option>
+                <option value="exact">Exact</option>
+                <option value="fuzzy">Fuzzy</option>
+            </select>
+            <div class="divider" role="separator"></div>
+            <span id="match-position" aria-live="polite"></span>
+            <button 
+                id="prev-match" 
+                title="Previous match (Shift + Enter)" 
+                aria-label="Previous match"
+            ></button>
+            <button 
+                id="next-match" 
+                title="Next match (Enter)" 
+                aria-label="Next match"
+            ></button>
+            <button 
+                id="confirm-search" 
+                title="Confirm search" 
+                aria-label="Confirm search"
+            ></button>
+            <button 
+                id="cancel-search" 
+                title="Close" 
+                aria-label="Cancel search"
+            ></button>
+        </div>
     </div>
-    <!-- info-bar removed per previous instructions -->
     <script src="popup.bundle.js"></script>
 </body>
 </html>

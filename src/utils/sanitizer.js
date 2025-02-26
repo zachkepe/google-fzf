@@ -4,25 +4,17 @@
  * @returns {string} Sanitized string
  */
 const sanitizeInput = (input) => {
-  return input
-      .replace(/[<>]/g, '') // Remove HTML tags
-      .trim();
+  return input.replace(/[<>]/g, '').trim();
 };
 
 /**
-* Validates search pattern constraints
-* @param {string} pattern - Search pattern to validate
-* @returns {string} Validated pattern
-* @throws {Error} If pattern is too long or short
-*/
+ * Validates search pattern constraints.
+ * (Note: Length validations have been removed.)
+ * @param {string} pattern - Search pattern to validate
+ * @returns {string} The trimmed pattern
+ */
 const validateSearchPattern = (pattern) => {
-  if (pattern.length > 100) {
-      throw new Error('Search pattern too long');
-  }
-  if (pattern.length < 2) {
-      throw new Error('Search pattern too short');
-  }
-  return pattern;
+  return pattern.trim();
 };
 
 export { sanitizeInput, validateSearchPattern };
