@@ -31,5 +31,6 @@ All contributions are appreciated, whether they're bug fixes, new features, or d
 
 ## Shortcuts
 Once the extension is running, you can use the following keyboard shortcuts in the search popup:
+- `Command+Shift+F`: Open the search popup.
 - `Enter`: Navigate to the next search match.
 - `Shift + Enter`: Navigate to the previous search match.

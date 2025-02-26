@@ -2,8 +2,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // DOM elements
     const searchInput = document.getElementById('search-input');
     const searchMode = document.getElementById('search-mode');
-    const resultsCount = document.getElementById('results-count');
-    const status = document.getElementById('status');
     const cancelButton = document.getElementById('cancel-search');
     const prevButton = document.getElementById('prev-match');
     const nextButton = document.getElementById('next-match');
@@ -15,21 +13,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     let totalMatches = 0;
 
     /**
-     * Updates status message
-     * @param {string} message - Status text
-     * @param {boolean} [isError=false] - Whether it's an error message
+     * Updates match position display (e.g., "1/5").
+     * Shows "0/0" if no matches exist.
      */
-    function updateStatus(message, isError = false) {
-        status.textContent = message;
-        status.className = isError ? 'error' : 'success';
-    }
-
-    /** Updates match position display */
     function updateMatchPosition() {
-        matchPosition.textContent = totalMatches > 0 ? `${currentIndex + 1}/${totalMatches}` : '';
-        console.log(totalMatches > 0 ? 
-            `Match position updated: ${currentIndex + 1}/${totalMatches}` : 
-            'No matches, clearing position'
+        matchPosition.textContent = `${(totalMatches > 0 ? currentIndex + 1 : 0)}/${totalMatches}`;
+        console.log(
+            totalMatches > 0 
+                ? `Match position updated: ${currentIndex + 1}/${totalMatches}`
+                : 'No matches, showing 0/0'
         );
     }
 
@@ -42,20 +34,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             if (!tab?.url) {
-                updateStatus('No active tab found', true);
+                console.log('No active tab found');
                 return false;
             }
             const url = tab.url;
-            if (url.startsWith(chrome.runtime.getURL('pdfViewer.html'))) return true;
-            if (/^(chrome|about|edge|brave):\/\//i.test(url)) {
-                updateStatus('Search is not available on this page', true);
+            // Also skip if the domain is the Chrome Web Store or internal pages
+            if (
+                /^(chrome|about|edge|brave):\/\//i.test(url) ||
+                /chrome.google.com\/webstore/.test(url)
+            ) {
+                console.log('Search is not available on this page');
                 searchInput.disabled = true;
+                searchInput.placeholder = 'Cannot search page';
                 return false;
             }
             return true;
         } catch (error) {
             console.error('Error checking page:', error);
-            updateStatus('Error checking page availability', true);
             return false;
         }
     }
@@ -108,11 +103,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             console.error('Failed to connect to content script after retries');
-            updateStatus('Cannot connect to page content', true);
             return false;
         } catch (error) {
             console.error('Failed to check content script:', error);
-            updateStatus('Cannot search on this page', true);
             return false;
         }
     }
@@ -125,25 +118,24 @@ document.addEventListener('DOMContentLoaded', async () => {
      */
     async function performSearch(query, mode) {
         if (!query.trim()) {
-            resultsCount.textContent = '';
-            matchPosition.textContent = '';
+            matchPosition.textContent = '0/0';
             currentIndex = 0;
             totalMatches = 0;
             updateMatchPosition();
             return;
         }
 
-        // Check minimum length before proceeding
+        // Minimum length check
         if (query.trim().length < 2) {
-            updateStatus('Please enter at least 2 characters', true);
+            console.log('Please enter at least 2 characters');
             return;
         }
 
-        updateStatus('Searching...');
+        console.log('Searching...');
         try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             if (!tab?.id || !await checkContentScript()) {
-                updateStatus('Cannot connect to page', true);
+                console.log('Cannot connect to page');
                 return;
             }
 
@@ -152,12 +144,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     type: 'START_SEARCH', 
                     query,
                     mode 
-                }, (response) => {
+                }, (resp) => {
                     if (chrome.runtime.lastError) {
                         console.error('Search message failed:', chrome.runtime.lastError.message);
                         resolve(null);
                     } else {
-                        resolve(response);
+                        resolve(resp);
                     }
                 });
             });
@@ -165,14 +157,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (response?.success) {
                 currentIndex = response.currentIndex;
                 totalMatches = response.totalMatches;
-                resultsCount.textContent = `Found ${response.matchCount} match${response.matchCount !== 1 ? 'es' : ''}`;
+                console.log(`Found ${response.matchCount} match(es)`);
                 updateMatchPosition();
-                updateStatus('');
             } else {
-                updateStatus(response?.error || 'Search failed', true);
+                console.log(response?.error || 'Search failed');
             }
         } catch (error) {
-            updateStatus('Error: Could not perform search', true);
             console.error('Search error:', error);
         }
     }
@@ -186,16 +176,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             if (!tab?.id || !await checkContentScript()) {
-                updateStatus('Cannot navigate matches: page not ready', true);
+                console.log('Cannot navigate matches: page not ready');
                 return;
             }
             const response = await new Promise((resolve) => {
-                chrome.tabs.sendMessage(tab.id, { type }, (response) => {
+                chrome.tabs.sendMessage(tab.id, { type }, (resp) => {
                     if (chrome.runtime.lastError) {
                         console.error(`Navigation (${type}) failed:`, chrome.runtime.lastError.message);
                         resolve(null);
                     } else {
-                        resolve(response);
+                        resolve(resp);
                     }
                 });
             });
@@ -204,7 +194,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (error) {
             console.error(`Error navigating ${type}:`, error);
-            updateStatus(`Error navigating matches`, true);
         }
     }
 
@@ -230,9 +219,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         resolve(response);
                     });
                 });
-                updateStatus('Search cancelled');
-                resultsCount.textContent = '';
-                matchPosition.textContent = '';
+                console.log('Search cancelled');
+                matchPosition.textContent = '0/0';
                 currentIndex = 0;
                 totalMatches = 0;
                 updateMatchPosition();
@@ -243,9 +231,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     prevButton.addEventListener('click', () => navigateMatch('PREV_MATCH'));
-
     nextButton.addEventListener('click', () => navigateMatch('NEXT_MATCH'));
 
+    // Listen for Enter to navigate matches
     document.addEventListener('keydown', async (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -257,14 +245,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    // Handle updates from content script about match changes
     chrome.runtime.onMessage.addListener((request) => {
         if (request.type === 'MATCH_UPDATE' || request.type === 'SEARCH_PROGRESS') {
             currentIndex = request.currentIndex;
             totalMatches = request.totalMatches;
             updateMatchPosition();
-            if (request.type === 'SEARCH_PROGRESS') {
-                resultsCount.textContent = `Found ${request.count} match${request.count !== 1 ? 'es' : ''}`;
-            }
         }
     });
 
@@ -274,11 +260,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (await checkContentScript()) {
                 searchInput.focus();
             } else {
-                updateStatus('Failed to connect to page content', true);
+                console.log('Failed to connect to page content');
             }
         }
     } catch (error) {
         console.error('Initialization error:', error);
-        updateStatus('Failed to initialize extension', true);
     }
 });
