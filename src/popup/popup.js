@@ -367,4 +367,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log('No query entered');
         }
     });
+
+    // --- Ensure highlights are cleared upon popup close ---
+    // When the popup window unloads, send a CANCEL_SEARCH message to clear highlights.
+    window.addEventListener('unload', async () => {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab?.id && (await checkContentScript())) {
+            chrome.tabs.sendMessage(tab.id, { type: 'CANCEL_SEARCH' });
+        }
+    });
+
+    // Also, when the user presses Escape, clear highlights and close the popup.
+    document.addEventListener('keydown', async (e) => {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tab?.id && (await checkContentScript())) {
+                chrome.tabs.sendMessage(tab.id, { type: 'CANCEL_SEARCH' });
+            }
+            window.close();
+        }
+    });
 });
