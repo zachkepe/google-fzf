@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const prevButton = document.getElementById('prev-match');
     const nextButton = document.getElementById('next-match');
     const matchPosition = document.getElementById('match-position');
+    const confirmButton = document.getElementById('confirm-search'); // Added for checkmark functionality
 
     /** @type {number|undefined} Debounce timeout ID */
     let debounceTimeout;
@@ -46,6 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.log('Search is not available on this page');
                 searchInput.disabled = true;
                 searchInput.placeholder = 'Cannot search page';
+                confirmButton.disabled = true; // Disable checkmark on non-searchable pages
                 return false;
             }
             return true;
@@ -209,26 +211,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     cancelButton.addEventListener('click', async () => {
         try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tab?.id) {
-            await new Promise((resolve) => {
-            chrome.tabs.sendMessage(tab.id, { type: 'CANCEL_SEARCH' }, (response) => {
-                if (chrome.runtime.lastError) {
-                console.error('Cancel search failed:', chrome.runtime.lastError.message);
-                }
-                resolve(response);
-            });
-            });
-            console.log('Search cancelled');
-            matchPosition.textContent = '0/0';
-            currentIndex = 0;
-            totalMatches = 0;
-            updateMatchPosition();
-        }
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tab?.id && await checkContentScript()) {
+                await new Promise((resolve) => {
+                    chrome.tabs.sendMessage(tab.id, { type: 'CANCEL_SEARCH' }, (response) => {
+                        if (chrome.runtime.lastError) {
+                            console.error('Cancel search failed:', chrome.runtime.lastError.message);
+                        }
+                        resolve(response);
+                    });
+                });
+                console.log('Search cancelled');
+                matchPosition.textContent = '0/0';
+                currentIndex = 0;
+                totalMatches = 0;
+                updateMatchPosition();
+            } else {
+                console.log('Content script not available, skipping cancel search');
+            }
         } catch (error) {
-        console.error('Cancel search error:', error);
+            console.error('Cancel search error:', error);
         } finally {
-        window.close();
+            window.close();
         }
     });
 
@@ -265,14 +269,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    // Add event listener for confirm button (checkmark)
+    confirmButton.addEventListener('click', async () => {
+        const query = searchInput.value.trim();
+        if (query) {
+            await performSearch(query, searchMode.value);
+        } else {
+            console.log('No query entered');
+        }
+    });
+
     // Initialization
     try {
         if (await isSearchablePage()) {
+            searchInput.disabled = false;
+            confirmButton.disabled = false; // Enable checkmark on searchable pages
             if (await checkContentScript()) {
                 searchInput.focus();
             } else {
                 console.log('Failed to connect to page content');
             }
+        } else {
+            searchInput.disabled = true;
+            searchInput.placeholder = 'Cannot search page';
+            confirmButton.disabled = true; // Disable checkmark on non-searchable pages
         }
     } catch (error) {
         console.error('Initialization error:', error);

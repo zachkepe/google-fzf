@@ -40,6 +40,41 @@ class ContentSearchManager {
     }
 
     /**
+     * Recursively collects all text nodes, including from shadow DOMs
+     * @param {Node} root - Root node to start traversal
+     * @returns {Node[]} Array of text nodes
+     */
+    getAllTextNodes(root) {
+        const textNodes = [];
+        const walker = document.createTreeWalker(
+            root,
+            NodeFilter.SHOW_TEXT,
+            {
+                acceptNode: node => {
+                    const parent = node.parentElement;
+                    if (!parent) return NodeFilter.FILTER_REJECT;
+                    const style = window.getComputedStyle(parent);
+                    return (style.display !== 'none' && style.visibility !== 'hidden' && node.textContent.trim())
+                        ? NodeFilter.FILTER_ACCEPT
+                        : NodeFilter.FILTER_REJECT;
+                }
+            }
+        );
+        let node;
+        while ((node = walker.nextNode())) {
+            textNodes.push(node);
+        }
+        // Process shadow roots
+        const elementsWithShadow = root.querySelectorAll('*');
+        for (const el of elementsWithShadow) {
+            if (el.shadowRoot) {
+                textNodes.push(...this.getAllTextNodes(el.shadowRoot));
+            }
+        }
+        return textNodes;
+    }
+
+    /**
      * Processes page content into searchable chunks
      * @async
      * @returns {Promise<{isPDF: boolean, chunks: Array}>}
@@ -47,6 +82,7 @@ class ContentSearchManager {
     async processPage() {
         const textLayers = document.querySelectorAll('.textLayer span');
         if (textLayers.length > 0) {
+            // Existing PDF processing (unchanged)
             const spans = Array.from(textLayers).filter(span => span.textContent.trim());
             const chunks = [];
             let currentChunk = { text: '', spans: [] };
@@ -59,7 +95,7 @@ class ContentSearchManager {
                 currentChunk.spans.push(span);
                 wordCount += words.length;
 
-                if (wordCount >= 20) { // Reduced from 50 for more precise highlights
+                if (wordCount >= 20) {
                     chunks.push({ text: currentChunk.text.trim(), spans: [...currentChunk.spans] });
                     currentChunk = { text: '', spans: [] };
                     wordCount = 0;
@@ -71,28 +107,8 @@ class ContentSearchManager {
             return { isPDF: true, chunks };
         }
 
-        // Process regular HTML content
-        const walker = document.createTreeWalker(
-            document.body,
-            NodeFilter.SHOW_TEXT,
-            {
-                acceptNode: node => {
-                    const parent = node.parentElement;
-                    if (!parent || parent.closest('.textLayer')) return NodeFilter.FILTER_REJECT;
-                    const style = window.getComputedStyle(parent);
-                    return (style.display !== 'none' && style.visibility !== 'hidden' && node.textContent.trim())
-                        ? NodeFilter.FILTER_ACCEPT
-                        : NodeFilter.FILTER_REJECT;
-                }
-            }
-        );
-
-        const textNodes = [];
-        let node;
-        while ((node = walker.nextNode())) {
-            textNodes.push(node);
-        }
-
+        // Process regular HTML content with shadow DOM support
+        const textNodes = this.getAllTextNodes(document.body);
         const chunks = [];
         let currentChunk = { text: '', nodes: [] };
         let wordCount = 0;
@@ -105,7 +121,7 @@ class ContentSearchManager {
             currentChunk.nodes.push(node);
             wordCount += words.length;
 
-            if (wordCount >= 20) { // Reduced from 50 for more precise highlights
+            if (wordCount >= 20) {
                 chunks.push({ text: currentChunk.text.trim(), nodes: [...currentChunk.nodes] });
                 currentChunk = { text: '', nodes: [] };
                 wordCount = 0;
