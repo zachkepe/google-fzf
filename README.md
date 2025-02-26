@@ -31,6 +31,8 @@ All contributions are appreciated, whether they're bug fixes, new features, or d
 
 ## Shortcuts
 Once the extension is running, you can use the following keyboard shortcuts in the search popup:
-- `Command+Shift+S`: Open the search popup.
+- [Mac] `Command+Shift+S`: Open the search popup.
+- [Windows] `Ctrl+Shift+S`: Open the search popup.
+- `Ctrl+Shift+M`: Toggle between search modes.
 - `Enter`: Navigate to the next search match.
 - `Shift + Enter`: Navigate to the previous search match.
