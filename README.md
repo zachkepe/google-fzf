@@ -1,38 +1,57 @@
 # GoogleFZF
-GoogleFZF is an open-source Chrome extension that enhances the standard "Command + F" search by using AI-powered contextual search. Instead of only matching exact words, GoogleFZF understands similar words and phrases on a webpage, making it easier to find what you're looking for. Additionally, it runs 100% in the browser.
+GoogleFZF is an open-source Chrome extension that enhances web and PDF search with AI-powered contextual capabilities. Unlike traditional "Ctrl/Cmd+F", it understands similar words and phrases, running entirely in-browser for privacy and speed.
 
-## Getting the Embeddings
-`cd` into `google-fzf` and run the following command:
+## Features
+- Semantic Search: Finds contextually similar text using GloVe embeddings and cosine similarity.
+- Fuzzy Search: Matches approximate text with Fuse.js.
+- Exact Search: Classic keyword matching.
+- PDF Support: Intercepts and renders PDFs with searchable text layers.
+- Privacy-First: All processing happens locally, no data leaves your browser.
 
+## Architecture
+- Background: Manages TensorFlow.js initialization, PDF fetching, and message passing.
+- Content: Handles page text extraction, highlighting, and search execution.
+- Popup: Provides a sleek UI with mode selection and match navigation.
+- Worker: Offloads semantic search computation for performance.
+- Tech Stack: TensorFlow.js, GloVe embeddings, pdfjs-dist, Fuse.js.
+
+## Getting Started
+### Prerequisites
+- Node.js 16+
+- Chrome 88+
+
+### Generating Embeddings
 ``` bash
-node scripts/generate_embeddings.js
+cd google-fzf
+node scripts/generate-embeddings.js
 ```
 
-This will generate the embeddings for the words in the `src/data/embeddings.json` file.
-
-## Running the Extension
-To run the extension, follow these steps:
-
-1. Run `npm install` to install the necessary dependencies.
+### Running the Extension
+1. Run `npm install` to install dependencies.
 2. Run `npm run build` to build the extension.
-3. Open Chrome and navigate to `chrome://extensions/`.
+3. Open Chrome, go to chrome://extensions/.
 4. Enable Developer Mode.
-5. Click on "Load unpacked" and select the `dist` folder.
-6. The extension should now be running.
-
-## Contributions
-GoogleFZF welcomes contributions from the community! If you'd like to contribute:
-
-1. Fork the repository on GitHub.
-2. Make your changes in your forked repository.
-3. Submit a pull request with a clear description of your improvements or fixes.
-
-All contributions are appreciated, whether they're bug fixes, new features, or documentation improvements.
+5. Click "Load unpacked" and select the dist folder.
 
 ## Shortcuts
-Once the extension is running, you can use the following keyboard shortcuts in the search popup:
-- [Mac] `Command+Shift+S`: Open the search popup.
-- [Windows] `Ctrl+Shift+S`: Open the search popup.
-- `Ctrl+Shift+M`: Toggle between search modes.
-- `Enter`: Navigate to the next search match.
-- `Shift + Enter`: Navigate to the previous search match.
+- Mac: `Command+Shift+S` - Open popup
+- Windows: `Ctrl+Shift+S` - Open popup
+- `Ctrl+Shift+M` - Cycle search modes
+- `Enter` - Next match
+- `Shift+Enter` - Previous match
+
+## Contributing
+We welcome contributions! To get started:
+1. Fork the repo on GitHub.
+2. Make changes in your fork.
+3. Submit a pull request with a clear description.
+
+Why contribute? Enhance an open source, cutting-edge tool!
+
+## Troubleshooting
+- PDF Fails to Load: May be due to CORS. Use "Download PDF" to save locally.
+- Slow Search: Reduce VOCAB_SIZE in config.js (future feature) or ensure WebGL is enabled.
+- Extension Not Loading: Check console for errors and ensure all files are in dist.
+
+## License
+MIT © Zachary Kepe
