@@ -61,43 +61,55 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     /**
-     * Ensures content script is injected and responsive
+     * Ensures content script is injected and responsive with retries
      * @async
+     * @param {number} [retries=2] - Number of retries
+     * @param {number} [delayMs=500] - Delay between retries in milliseconds
      * @returns {Promise<boolean>}
      */
-    async function checkContentScript() {
+    async function checkContentScript(retries = 2, delayMs = 500) {
         try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             if (!tab?.id || !await isSearchablePage()) return false;
 
-            // Check if content script is already responsive
-            try {
-                const response = await new Promise((resolve) => {
-                    chrome.tabs.sendMessage(tab.id, { type: 'PING' }, resolve);
+            // Helper function to send PING and wait for response
+            const pingContentScript = () => new Promise((resolve) => {
+                chrome.tabs.sendMessage(tab.id, { type: 'PING' }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.log('PING failed:', chrome.runtime.lastError.message);
+                        resolve(null);
+                    } else {
+                        resolve(response);
+                    }
                 });
-                if (response?.status === 'OK') return true;
-            } catch (error) {
-                console.log('Content script not responding, attempting injection:', error.message);
+            });
+
+            // Check if content script is already responsive
+            let response = await pingContentScript();
+            if (response?.status === 'OK') return true;
+
+            // Retry logic if initial PING fails
+            for (let attempt = 0; attempt < retries; attempt++) {
+                console.log(`Content script not responding, attempt ${attempt + 1} of ${retries}`);
+                try {
+                    await chrome.scripting.executeScript({
+                        target: { tabId: tab.id },
+                        files: ['content.bundle.js']
+                    });
+                    await new Promise(resolve => setTimeout(resolve, delayMs)); // Wait for script to load
+                    response = await pingContentScript();
+                    if (response?.status === 'OK') {
+                        console.log('Content script successfully reinjected');
+                        return true;
+                    }
+                } catch (injectionError) {
+                    console.error(`Injection attempt ${attempt + 1} failed:`, injectionError);
+                }
             }
 
-            // Inject content script if not already present
-            try {
-                await chrome.scripting.executeScript({
-                    target: { tabId: tab.id },
-                    files: ['content.bundle.js']
-                });
-                // Verify injection worked with a slight delay to allow script to load
-                await new Promise(resolve => setTimeout(resolve, 100));
-                const response = await new Promise((resolve) => {
-                    chrome.tabs.sendMessage(tab.id, { type: 'PING' }, resolve);
-                });
-                if (response?.status === 'OK') return true;
-                throw new Error('Content script injected but not responding');
-            } catch (injectionError) {
-                console.error('Failed to inject or verify content script:', injectionError);
-                updateStatus('Cannot connect to page content', true);
-                return false;
-            }
+            console.error('Failed to connect to content script after retries');
+            updateStatus('Cannot connect to page content', true);
+            return false;
         } catch (error) {
             console.error('Failed to check content script:', error);
             updateStatus('Cannot search on this page', true);
@@ -140,7 +152,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     type: 'START_SEARCH', 
                     query,
                     mode 
-                }, resolve);
+                }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.error('Search message failed:', chrome.runtime.lastError.message);
+                        resolve(null);
+                    } else {
+                        resolve(response);
+                    }
+                });
             });
 
             if (response?.success) {
@@ -171,7 +190,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
             const response = await new Promise((resolve) => {
-                chrome.tabs.sendMessage(tab.id, { type }, resolve);
+                chrome.tabs.sendMessage(tab.id, { type }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.error(`Navigation (${type}) failed:`, chrome.runtime.lastError.message);
+                        resolve(null);
+                    } else {
+                        resolve(response);
+                    }
+                });
             });
             if (!response?.success) {
                 console.warn(`Failed to navigate ${type}:`, response?.error);
@@ -196,7 +222,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             if (tab?.id) {
-                await chrome.tabs.sendMessage(tab.id, { type: 'CANCEL_SEARCH' });
+                await new Promise((resolve) => {
+                    chrome.tabs.sendMessage(tab.id, { type: 'CANCEL_SEARCH' }, (response) => {
+                        if (chrome.runtime.lastError) {
+                            console.error('Cancel search failed:', chrome.runtime.lastError.message);
+                        }
+                        resolve(response);
+                    });
+                });
                 updateStatus('Search cancelled');
                 resultsCount.textContent = '';
                 matchPosition.textContent = '';
