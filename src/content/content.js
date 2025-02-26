@@ -144,7 +144,8 @@ class ContentSearchManager {
                 const fuse = new Fuse(chunks, {
                     keys: ['text'],
                     includeScore: true,
-                    threshold: 0.4 // Reduced from 0.6 for stricter fuzzy matching
+                    threshold: 0.4,
+                    shouldSort: false
                 });
                 const fuseResults = fuse.search(sanitizedQuery);
 
