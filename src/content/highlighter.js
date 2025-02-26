@@ -1,16 +1,24 @@
-/** @constant {string} Base highlight class */
+/**
+ * Base CSS class for highlighted elements.
+ * @constant {string}
+ */
 const HIGHLIGHT_CLASS = 'fuzzy-search-highlight';
-/** @constant {string} Active highlight class */
+
+/**
+ * CSS class for the currently active highlighted element.
+ * @constant {string}
+ */
 const ACTIVE_HIGHLIGHT_CLASS = 'fuzzy-search-highlight-active';
 
 /**
- * Highlights a node in the DOM
- * @param {Node} node - DOM node to highlight
- * @returns {HTMLElement|null} Highlighted element or null if failed
+ * Highlights a DOM node by wrapping it in a styled span or adding a class.
+ * @function highlight
+ * @param {Node} node - The DOM node to highlight (text or element).
+ * @returns {HTMLElement|null} The highlighted element, or null if highlighting fails.
  */
 export function highlight(node) {
     if (!node) {
-        console.warn('Invalid node:', node);
+        console.warn('Invalid node provided for highlighting:', node);
         return null;
     }
 
@@ -41,13 +49,14 @@ export function highlight(node) {
         }
         return null;
     } catch (error) {
-        console.error('Highlight error:', error);
+        console.error('Highlighting error:', error);
         return null;
     }
 }
 
 /**
- * Clears all highlights from the document
+ * Removes all highlights from the document, restoring original DOM structure.
+ * @function clearHighlights
  */
 export function clearHighlights() {
     try {
@@ -66,17 +75,19 @@ export function clearHighlights() {
                 highlight.removeAttribute('aria-label');
             }
         });
-        console.log('Highlights cleared');
+        console.log('All highlights cleared');
     } catch (error) {
-        console.error('Clear highlights error:', error);
+        console.error('Error clearing highlights:', error);
     }
 }
 
 /**
- * Creates a debounced function
- * @param {Function} func - Function to debounce
- * @param {number} wait - Wait time in milliseconds
- * @returns {Function} Debounced function
+ * Creates a debounced function that delays execution until after a wait period.
+ * @function debounce
+ * @param {Function} func - The function to debounce.
+ * @param {number} wait - The delay in milliseconds.
+ * @returns {Function} A debounced version of the input function.
+ * @private
  */
 function debounce(func, wait) {
     let timeout;
@@ -87,12 +98,15 @@ function debounce(func, wait) {
 }
 
 /**
- * Scrolls to a specific match
- * @type {Function}
+ * Scrolls the viewport to a specific match, applying active highlight styling.
+ * Debounced to prevent excessive scroll events.
+ * @function scrollToMatch
+ * @param {Node[]} nodes - Array of DOM nodes representing the match.
+ * @param {number} [activeIndex=0] - Index of the node to mark as active.
  */
 export const scrollToMatch = debounce((nodes, activeIndex = 0) => {
     if (!nodes?.length) {
-        console.warn('Invalid nodes for scrollToMatch');
+        console.warn('Invalid nodes array for scrolling');
         return;
     }
 
@@ -114,9 +128,9 @@ export const scrollToMatch = debounce((nodes, activeIndex = 0) => {
         if (highlightElements.length > 0 && activeIndex >= 0 && activeIndex < highlightElements.length) {
             const activeElement = highlightElements[activeIndex];
             activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            console.log('Scrolled to:', activeElement);
+            console.log('Scrolled to match:', activeElement);
         }
     } catch (error) {
-        console.error('Scroll error:', error);
+        console.error('Scroll to match error:', error);
     }
 }, 100);

@@ -1,20 +1,19 @@
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist/legacy/build/pdf';
 
 /**
- * Extracts text content from a PDF file
+ * Extracts text content from a specified page of a PDF file.
  * @async
- * @param {string} url - URL of the PDF file
- * @param {number} [pageNum=1] - Page number to extract (default: 1)
- * @returns {Promise<string>} Extracted text content
- * @throws {Error} If PDF loading or text extraction fails
+ * @function extractTextFromPDF
+ * @param {string} url - The URL of the PDF file (local or remote).
+ * @param {number} [pageNum=1] - The page number to extract text from (1-based index).
+ * @returns {Promise<string>} The extracted text content, or empty string if no text is found.
+ * @throws {Error} If PDF loading, page access, or text extraction fails.
  */
 export async function extractTextFromPDF(url, pageNum = 1) {
     try {
-        // Configure PDF.js worker
         GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('pdf.worker.bundle.js');
         let pdfData;
 
-        // Handle different URL types
         if (url.startsWith('file://')) {
             pdfData = await new Promise((resolve, reject) => {
                 chrome.runtime.sendMessage({ type: 'FETCH_PDF', url }, response => {
@@ -28,12 +27,10 @@ export async function extractTextFromPDF(url, pageNum = 1) {
             pdfData = await response.arrayBuffer();
         }
 
-        // Validate PDF data
         if (!pdfData || pdfData.byteLength === 0) {
             throw new Error('Invalid or empty PDF data');
         }
 
-        // Load and process PDF
         const loadingTask = getDocument({
             data: pdfData,
             cMapUrl: chrome.runtime.getURL('node_modules/pdfjs-dist/cmaps/'),
@@ -55,7 +52,7 @@ export async function extractTextFromPDF(url, pageNum = 1) {
 
         return pageText || '';
     } catch (error) {
-        console.error('Error in extractTextFromPDF:', error.message);
+        console.error('Error extracting text from PDF:', error.message);
         throw error;
     }
 }

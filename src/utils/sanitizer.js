@@ -1,18 +1,20 @@
 /**
- * Sanitizes input by removing dangerous characters
- * @param {string} input - Input string to sanitize
- * @returns {string} Sanitized string
+ * Sanitizes input by removing potentially dangerous characters.
+ * @function sanitizeInput
+ * @param {string} input - The input string to sanitize.
+ * @returns {string} The sanitized string with '<' and '>' removed and trimmed.
  */
 const sanitizeInput = (input) => {
   return input.replace(/[<>]/g, '').trim();
 };
 
 /**
- * Validates search pattern constraints.
- * (Note: Length validations have been removed.)
- * @param {string} pattern - Search pattern to validate
- * @returns {string} The trimmed pattern
- */
+* Validates a search pattern, ensuring it meets basic requirements.
+* @function validateSearchPattern
+* @param {string} pattern - The search pattern to validate.
+* @returns {string} The trimmed pattern if valid.
+* @throws {Error} If validation fails (currently no constraints enforced beyond trimming).
+*/
 const validateSearchPattern = (pattern) => {
   return pattern.trim();
 };

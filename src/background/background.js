@@ -1,28 +1,40 @@
 import * as tf from '@tensorflow/tfjs';
 
-/** @typedef {ArrayBuffer|null} PdfData */
+/**
+ * Represents PDF data stored in memory.
+ * @typedef {ArrayBuffer|null} PdfData
+ */
 
-/** @type {boolean} TensorFlow initialization status */
+/**
+ * Tracks whether TensorFlow.js has been initialized.
+ * @type {boolean}
+ */
 let tfInitialized = false;
-/** @type {PdfData} Stored PDF data */
+
+/**
+ * Stores PDF data locally in the background script.
+ * @type {PdfData}
+ */
 let localPdfData = null;
 
 /**
- * Initializes TensorFlow with WebGL backend
+ * Initializes TensorFlow.js with the WebGL backend for optimal performance.
  * @async
- * @returns {Promise<void>}
+ * @function initializeTensorFlow
+ * @returns {Promise<void>} Resolves when TensorFlow is initialized.
+ * @throws {Error} If TensorFlow initialization fails due to backend issues.
  */
 async function initializeTensorFlow() {
     if (tfInitialized) return;
-    
+
     try {
         if (!tf.getBackend()) {
             await tf.setBackend('webgl');
-            await tf.ready(); // Ensure all kernels are registered
+            await tf.ready(); // Waits for backend registration and kernel initialization
             console.log('TensorFlow.js initialized with WebGL backend');
         } else if (tf.getBackend() !== 'webgl') {
-            console.warn('Another backend is already set:', tf.getBackend());
-            await tf.setBackend('webgl'); // Force WebGL if possible
+            console.warn('Switching to WebGL backend from:', tf.getBackend());
+            await tf.setBackend('webgl');
             await tf.ready();
         } else {
             console.log('TensorFlow.js already initialized with WebGL backend');
@@ -30,33 +42,34 @@ async function initializeTensorFlow() {
         tfInitialized = true;
     } catch (error) {
         console.error('Failed to initialize TensorFlow.js:', error);
-        tfInitialized = false; // Ensure status reflects failure
+        tfInitialized = false;
     }
 }
 
-// Initialize TensorFlow immediately on background script load
+// Initialize TensorFlow immediately on script load
 initializeTensorFlow();
 
-// Extension installation handler (now just logs, since initialization is immediate)
+// Handle extension installation event
 chrome.runtime.onInstalled.addListener(() => {
     console.log('Extension installed');
 });
 
 /**
- * Converts a Uint8Array to a string in chunks to avoid call stack size exceeded errors.
- * @param {Uint8Array} uint8Arr - The Uint8Array to convert
- * @returns {string} The resulting string
+ * Converts a Uint8Array to a string in chunks to prevent stack overflow errors.
+ * @function uint8ToString
+ * @param {Uint8Array} uint8Arr - The byte array to convert.
+ * @returns {string} The resulting string representation.
  */
 function uint8ToString(uint8Arr) {
-    const CHUNK_SIZE = 0x8000; // 32768
-    let result = "";
+    const CHUNK_SIZE = 0x8000; // 32KB chunks to manage memory efficiently
+    let result = '';
     for (let i = 0; i < uint8Arr.length; i += CHUNK_SIZE) {
         result += String.fromCharCode.apply(null, uint8Arr.subarray(i, i + CHUNK_SIZE));
     }
     return result;
 }
 
-// Message handler for various background operations
+// Handle messages from other parts of the extension
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     switch (request.type) {
         case 'SET_LOCAL_PDF_DATA':
@@ -71,7 +84,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 const binary = uint8ToString(bytes);
                 const base64Data = btoa(binary);
                 sendResponse({ data: base64Data });
-                localPdfData = null;
+                localPdfData = null; // Clear after sending to free memory
             } else {
                 sendResponse({ error: 'No local PDF data available' });
             }
@@ -83,18 +96,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         case 'FETCH_EMBEDDINGS':
             fetch(chrome.runtime.getURL('embeddings.json'), { method: 'GET' })
-                .then(response => response.ok ? response.json() : Promise.reject(response.status))
+                .then(response => response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)))
                 .then(data => sendResponse({ data }))
                 .catch(error => {
                     console.error('Embeddings fetch failed:', error);
                     sendResponse({ error: error.message });
                 });
-            return true;
+            return true; // Keep the message channel open for async response
 
         case 'FETCH_PDF':
             console.log('Fetching PDF from:', request.url);
             fetch(request.url, { method: 'GET', credentials: 'omit' })
-                .then(response => response.ok ? response.arrayBuffer() : Promise.reject(response.status))
+                .then(response => response.ok ? response.arrayBuffer() : Promise.reject(new Error(`HTTP ${response.status}`)))
                 .then(data => {
                     console.log('PDF data fetched, size:', data.byteLength);
                     const bytes = new Uint8Array(data);
@@ -121,7 +134,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 });
 
-// PDF navigation interceptor
+// Intercept PDF navigation to redirect to custom viewer
 chrome.webNavigation.onBeforeNavigate.addListener(
     (details) => {
         if (details.url.toLowerCase().endsWith('.pdf')) {
@@ -132,7 +145,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(
     { url: [{ urlMatches: '.*\\.pdf$' }] }
 );
 
-// Opens the popup
+// Handle keyboard command to open popup
 chrome.commands.onCommand.addListener((command) => {
     if (command === '_execute_action') {
         chrome.action.openPopup();

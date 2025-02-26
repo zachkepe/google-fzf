@@ -4,14 +4,15 @@ import RateLimiter from '../utils/rateLimiter';
 import { highlight, clearHighlights, scrollToMatch } from './highlighter';
 import Fuse from 'fuse.js';
 
-/** @type {ContentSearchManager|null} Global search manager instance */
-let searchManager = null;
-
 /**
- * Manages content searching functionality
+ * Manages content searching functionality across web pages and PDFs.
  * @class
  */
 class ContentSearchManager {
+    /**
+     * Initializes a new instance with necessary dependencies.
+     * @constructor
+     */
     constructor() {
         this.similaritySearch = new SimilaritySearch();
         this.rateLimiter = new RateLimiter(10, 1);
@@ -23,9 +24,10 @@ class ContentSearchManager {
     }
 
     /**
-     * Initializes the search manager
+     * Initializes the search manager by loading the similarity search model.
      * @async
-     * @returns {Promise<void>}
+     * @returns {Promise<void>} Resolves when initialization is complete.
+     * @throws {Error} If model initialization fails.
      */
     async initialize() {
         if (this.isInitialized) return;
@@ -40,9 +42,9 @@ class ContentSearchManager {
     }
 
     /**
-     * Recursively collects all text nodes, including from shadow DOMs
-     * @param {Node} root - Root node to start traversal
-     * @returns {Node[]} Array of text nodes
+     * Recursively collects all text nodes from the DOM, including shadow DOMs.
+     * @param {Node} root - The root node to start traversal from.
+     * @returns {Node[]} An array of text nodes with visible content.
      */
     getAllTextNodes(root) {
         const textNodes = [];
@@ -64,7 +66,7 @@ class ContentSearchManager {
         while ((node = walker.nextNode())) {
             textNodes.push(node);
         }
-        // Process shadow roots
+        // Process shadow DOMs
         const elementsWithShadow = root.querySelectorAll('*');
         for (const el of elementsWithShadow) {
             if (el.shadowRoot) {
@@ -75,14 +77,13 @@ class ContentSearchManager {
     }
 
     /**
-     * Processes page content into searchable chunks
+     * Processes page content into searchable chunks for PDFs or HTML.
      * @async
-     * @returns {Promise<{isPDF: boolean, chunks: Array}>}
+     * @returns {Promise<{isPDF: boolean, chunks: Array<{text: string, spans?: HTMLElement[], nodes?: Node[]}>}>} Processed page data.
      */
     async processPage() {
         const textLayers = document.querySelectorAll('.textLayer span');
         if (textLayers.length > 0) {
-            // Existing PDF processing (unchanged)
             const spans = Array.from(textLayers).filter(span => span.textContent.trim());
             const chunks = [];
             let currentChunk = { text: '', spans: [] };
@@ -107,7 +108,6 @@ class ContentSearchManager {
             return { isPDF: true, chunks };
         }
 
-        // Process regular HTML content with shadow DOM support
         const textNodes = this.getAllTextNodes(document.body);
         const chunks = [];
         let currentChunk = { text: '', nodes: [] };
@@ -134,11 +134,12 @@ class ContentSearchManager {
     }
 
     /**
-     * Performs a search with specified query and mode
+     * Performs a search on the page content using the specified query and mode.
      * @async
-     * @param {string} query - Search query
-     * @param {string} [mode='semantic'] - Search mode (semantic, exact, fuzzy)
-     * @returns {Promise<{matchCount: number, currentIndex: number, totalMatches: number}>}
+     * @param {string} query - The search query string.
+     * @param {string} [mode='semantic'] - Search mode: 'semantic', 'exact', or 'fuzzy'.
+     * @returns {Promise<{matchCount: number, currentIndex: number, totalMatches: number}>} Search results metadata.
+     * @throws {Error} If rate limit is exceeded or search processing fails.
      */
     async search(query, mode = 'semantic') {
         if (!this.isInitialized) await this.initialize();
@@ -243,14 +244,17 @@ class ContentSearchManager {
         }
     }
 
-    /** Updates highlight styles based on current match */
+    /**
+     * Updates highlight styles to reflect the current match.
+     * @private
+     */
     updateHighlights() {
         this.highlightElements.forEach(el => {
             const matchIndex = this.currentMatches.findIndex(match => {
                 const elements = match.matchedElements || match.spans || match.nodes;
                 return elements.includes(el.nodeType === Node.TEXT_NODE ? el.parentElement : el);
             });
-    
+
             if (matchIndex === this.currentMatchIndex) {
                 const currentMatch = this.currentMatches[this.currentMatchIndex];
                 const chunkElements = currentMatch.matchedElements || currentMatch.spans || currentMatch.nodes;
@@ -266,7 +270,10 @@ class ContentSearchManager {
         });
     }
 
-    /** Scrolls to the current match */
+    /**
+     * Scrolls the viewport to the current match.
+     * @private
+     */
     scrollToCurrentMatch() {
         if (this.currentMatchIndex >= 0 && this.currentMatches.length > 0) {
             const match = this.currentMatches[this.currentMatchIndex];
@@ -275,7 +282,9 @@ class ContentSearchManager {
         }
     }
 
-    /** Navigates to next match */
+    /**
+     * Navigates to the next match in the list.
+     */
     nextMatch() {
         if (this.currentMatches.length === 0) return;
         this.currentMatchIndex = (this.currentMatchIndex + 1) % this.currentMatches.length;
@@ -288,7 +297,9 @@ class ContentSearchManager {
         });
     }
 
-    /** Navigates to previous match */
+    /**
+     * Navigates to the previous match in the list.
+     */
     previousMatch() {
         if (this.currentMatches.length === 0) return;
         this.currentMatchIndex = (this.currentMatches.length + this.currentMatchIndex - 1) % this.currentMatches.length;
@@ -302,20 +313,24 @@ class ContentSearchManager {
     }
 }
 
-// Initialization logic
+// Singleton instance of the search manager
+let searchManager = null;
+
+// Initialization logic to prevent multiple instances
 if (!window.googleFzfInitialized) {
     window.googleFzfInitialized = true;
 
     /**
-     * Initializes the extension
+     * Initializes the extension content script.
      * @async
+     * @private
      */
     async function initializeExtension() {
         try {
             searchManager = new ContentSearchManager();
             await searchManager.initialize();
 
-            // Inject highlight styles
+            // Inject CSS styles for highlighting
             const style = document.createElement('style');
             style.textContent = `
                 .fuzzy-search-highlight {
@@ -341,7 +356,7 @@ if (!window.googleFzfInitialized) {
         }
     }
 
-    // Set up message listener immediately
+    // Set up message listener for communication with background/popup
     if (chrome?.runtime) {
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if (request.type === 'PING') {
@@ -353,7 +368,6 @@ if (!window.googleFzfInitialized) {
                 sendResponse({ selection });
                 return true;
             }
-            // Defer other messages until searchManager is ready
             if (!searchManager) {
                 sendResponse({ success: false, error: 'Search manager not initialized' });
                 return true;
@@ -384,7 +398,7 @@ if (!window.googleFzfInitialized) {
                     sendResponse({ success: false, error: error.message });
                 }
             })();
-            return true;
+            return true; // Keep channel open for async responses
         });
     }
 

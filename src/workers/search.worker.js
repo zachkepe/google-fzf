@@ -1,26 +1,45 @@
 import * as tf from '@tensorflow/tfjs';
 
-/** @constant {number} Minimum similarity score for matches */
+/**
+ * Minimum similarity score required for a match.
+ * @constant {number}
+ */
 const SIMILARITY_THRESHOLD = 0.8;
-/** @constant {number} Maximum number of search results */
+
+/**
+ * Maximum number of search results to return.
+ * @constant {number}
+ */
 const MAX_RESULTS = 50;
-/** @constant {number} Number of context words to include */
+
+/**
+ * Number of context words to include around a match.
+ * @constant {number}
+ */
 const CONTEXT_WORDS = 10;
-/** @constant {number} Vocabulary size */
+
+/**
+ * Vocabulary size for embeddings.
+ * @constant {number}
+ */
 const VOCAB_SIZE = 15000;
-/** @constant {number} Embedding dimension */
+
+/**
+ * Dimension of embedding vectors.
+ * @constant {number}
+ */
 const EMBEDDING_DIM = 50;
 
-/** @type {Object|null} Word to index mapping */
+/** @type {Object|null} Mapping of words to their indices */
 let wordToIndex = null;
-/** @type {tf.Tensor|null} Word embeddings tensor */
+/** @type {tf.Tensor|null} Tensor containing word embeddings */
 let embeddings = null;
-/** @type {Map<string, tf.Tensor>} Cache for text embeddings */
+/** @type {Map<string, tf.Tensor>} Cache for computed text embeddings */
 let embeddingCache = new Map();
 
 /**
- * Worker message handler
- * @param {MessageEvent} e - Worker message event
+ * Handles messages from the main thread to initialize or perform searches.
+ * @param {MessageEvent} e - The message event containing type and data.
  */
 self.onmessage = async function(e) {
     if (e.data.type === 'INIT') {
@@ -45,32 +64,28 @@ self.onmessage = async function(e) {
 };
 
 /**
- * Calculates relevance score for a chunk
- * @param {Object} chunk - Text chunk object
- * @param {string} query - Search query
- * @param {number} similarity - Cosine similarity score
- * @returns {number} Relevance score
+ * Calculates a relevance score for a text chunk based on similarity and other factors.
+ * @param {Object} chunk - The text chunk object with a 'text' property.
+ * @param {string} query - The search query.
+ * @param {number} similarity - The cosine similarity score.
+ * @returns {number} The computed relevance score.
  */
 function calculateRelevanceScore(chunk, query, similarity) {
     let score = similarity;
 
-    // Exact match bonus
     if (chunk.text.toLowerCase().includes(query.toLowerCase())) {
         score += 0.2;
     }
 
-    // Word overlap score
     const queryWords = new Set(query.toLowerCase().split(/\s+/));
     const chunkWords = new Set(chunk.text.toLowerCase().split(/\s+/));
     const overlap = [...queryWords].filter(word => chunkWords.has(word)).length;
     score += (overlap / queryWords.size) * 0.3;
 
-    // Length penalty
     const idealLength = query.length * 5;
     const lengthDiff = Math.abs(chunk.text.length - idealLength) / idealLength;
     score -= lengthDiff * 0.1;
 
-    // Sequential term bonus
     const queryTerms = query.toLowerCase().split(/\s+/);
     if (queryTerms.length > 1) {
         let foundInOrder = true;
@@ -90,11 +105,11 @@ function calculateRelevanceScore(chunk, query, similarity) {
 }
 
 /**
- * Performs semantic search on text chunks
+ * Performs a semantic search across provided text chunks.
  * @async
- * @param {string} query - Search query
- * @param {Object[]} chunks - Text chunks to search
- * @returns {Promise<Object[]>} Search results
+ * @param {string} query - The search query.
+ * @param {Object[]} chunks - Array of chunk objects with 'text' properties.
+ * @returns {Promise<Object[]>} Array of matching chunks with scores and context.
  */
 async function performSearch(query, chunks) {
     try {
@@ -113,7 +128,7 @@ async function performSearch(query, chunks) {
             const similarity = await getSimilarity(queryEmbedding, chunk.text);
             if (similarity > SIMILARITY_THRESHOLD) {
                 const score = calculateRelevanceScore(chunk, query, similarity);
-                
+
                 if (score > SIMILARITY_THRESHOLD) {
                     const chunkWords = chunk.text.split(/\s+/);
                     const matchIndex = chunk.text.toLowerCase().indexOf(query.toLowerCase());
@@ -131,16 +146,16 @@ async function performSearch(query, chunks) {
 
         return results.sort((a, b) => b.score - a.score).slice(0, MAX_RESULTS);
     } catch (error) {
-        console.error('Search error:', error);
+        console.error('Search error in worker:', error);
         return [];
     }
 }
 
 /**
- * Generates text embedding
+ * Generates an embedding vector for the given text.
  * @async
- * @param {string} text - Input text
- * @returns {Promise<tf.Tensor|null>} Text embedding or null if failed
+ * @param {string} text - The text to embed.
+ * @returns {Promise<tf.Tensor|null>} The mean embedding tensor, or null if no valid tokens.
  */
 async function getTextEmbedding(text) {
     try {
@@ -167,17 +182,17 @@ async function getTextEmbedding(text) {
             return meanEmbedding;
         });
     } catch (error) {
-        console.error('Error in getTextEmbedding:', error);
+        console.error('Error generating embedding in worker:', error);
         return null;
     }
 }
 
 /**
- * Calculates similarity between query and text
+ * Calculates similarity between a query embedding and text.
  * @async
- * @param {tf.Tensor} queryEmbedding - Query embedding
- * @param {string} text - Text to compare
- * @returns {Promise<number>} Similarity score
+ * @param {tf.Tensor} queryEmbedding - The query's embedding vector.
+ * @param {string} text - The text to compare against.
+ * @returns {Promise<number>} The cosine similarity score.
  */
 async function getSimilarity(queryEmbedding, text) {
     const textEmbedding = await getTextEmbedding(text);
@@ -186,9 +201,9 @@ async function getSimilarity(queryEmbedding, text) {
 }
 
 /**
- * Tokenizes text for embedding
- * @param {string} text - Input text
- * @returns {string[]} Tokens
+ * Tokenizes text into words for embedding.
+ * @param {string} text - The input text.
+ * @returns {string[]} Array of cleaned tokens.
  */
 function tokenize(text) {
     const cleanedText = text.toLowerCase().replace(/[^a-z0-9\s]/g, '');
@@ -196,10 +211,10 @@ function tokenize(text) {
 }
 
 /**
- * Calculates cosine similarity between embeddings
- * @param {tf.Tensor} embedding1 - First embedding
- * @param {tf.Tensor} embedding2 - Second embedding
- * @returns {number} Similarity score
+ * Computes cosine similarity between two embeddings.
+ * @param {tf.Tensor} embedding1 - First embedding vector.
+ * @param {tf.Tensor} embedding2 - Second embedding vector.
+ * @returns {number} The cosine similarity score (0 if invalid).
  */
 function cosineSimilarity(embedding1, embedding2) {
     if (!embedding1 || !embedding2) return 0;
@@ -213,7 +228,7 @@ function cosineSimilarity(embedding1, embedding2) {
 }
 
 /**
- * Cleans up TensorFlow resources
+ * Disposes of TensorFlow resources in the worker.
  */
 function dispose() {
     if (embeddings) embeddings.dispose();

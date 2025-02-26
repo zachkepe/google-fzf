@@ -1,18 +1,41 @@
 import * as tf from '@tensorflow/tfjs';
 
-/** @constant {number} Vocabulary size */
+/**
+ * Vocabulary size for the embedding model.
+ * @constant {number}
+ */
 const VOCAB_SIZE = 15000;
-/** @constant {number} Embedding dimension */
+
+/**
+ * Dimension of each word embedding vector.
+ * @constant {number}
+ */
 const EMBEDDING_DIM = 50;
 
 /**
- * Handles semantic similarity search using word embeddings
+ * Manages semantic similarity search using pre-trained word embeddings.
+ * Implements a singleton pattern to ensure a single instance.
  * @class
  */
 class SimilaritySearch {
+    /**
+     * Singleton instance of SimilaritySearch.
+     * @type {SimilaritySearch|null}
+     * @static
+     */
     static instance = null;
+
+    /**
+     * Tracks TensorFlow.js initialization status.
+     * @type {boolean}
+     * @static
+     */
     static tfInitialized = false;
 
+    /**
+     * Initializes a new instance or returns the existing singleton.
+     * @constructor
+     */
     constructor() {
         if (SimilaritySearch.instance) return SimilaritySearch.instance;
         this.model = null;
@@ -24,9 +47,10 @@ class SimilaritySearch {
     }
 
     /**
-     * Initializes embeddings, relying on background script for TensorFlow
+     * Initializes the similarity search by loading embeddings and verifying TensorFlow.js.
      * @async
-     * @returns {Promise<void>}
+     * @returns {Promise<void>} Resolves when initialization is complete.
+     * @throws {Error} If embeddings cannot be fetched or TensorFlow.js is not initialized.
      */
     async initialize() {
         if (this.isInitialized) return;
@@ -57,12 +81,12 @@ class SimilaritySearch {
     }
 
     /**
-     * Finds similar text based on semantic similarity
+     * Determines if the provided text is semantically similar to the search query.
      * @async
-     * @param {string} searchText - Search query
-     * @param {string} pageText - Page content
-     * @param {number} [threshold=0.8] - Similarity threshold
-     * @returns {Promise<boolean>} Whether similar text was found
+     * @param {string} searchText - The search query string.
+     * @param {string} pageText - The text content to compare against.
+     * @param {number} [threshold=0.8] - Minimum similarity score to consider a match.
+     * @returns {Promise<boolean>} True if similarity exceeds the threshold, false otherwise.
      */
     async findSimilar(searchText, pageText, threshold = 0.8) {
         await this.initialize();
@@ -85,10 +109,11 @@ class SimilaritySearch {
     }
 
     /**
-     * Calculates batch cosine similarity
-     * @param {tf.Tensor} embedding - Single embedding
-     * @param {tf.Tensor} batchEmbeddings - Batch of embeddings
-     * @returns {tf.Tensor} Similarity scores
+     * Computes batch cosine similarity between a single embedding and multiple embeddings.
+     * @param {tf.Tensor} embedding - The reference embedding (e.g., search query).
+     * @param {tf.Tensor} batchEmbeddings - Tensor of embeddings to compare against.
+     * @returns {tf.Tensor} A tensor of similarity scores.
+     * @private
      */
     batchCosineSimilarity(embedding, batchEmbeddings) {
         const dotProduct = tf.matMul(batchEmbeddings, embedding.expandDims(1));
@@ -98,10 +123,10 @@ class SimilaritySearch {
     }
 
     /**
-     * Generates text embedding
-     * @param {string} text - Input text
-     * @param {boolean} isQuery - Whether this is a search query
-     * @returns {tf.Tensor|null} Text embedding or null if failed
+     * Generates a mean embedding vector for the given text.
+     * @param {string} text - The input text to embed.
+     * @param {boolean} isQuery - Indicates if the text is a search query (affects tokenization).
+     * @returns {tf.Tensor|null} The mean embedding tensor, or null if no valid tokens are found.
      */
     getTextEmbedding(text, isQuery = false) {
         try {
@@ -128,16 +153,16 @@ class SimilaritySearch {
                 return meanEmbedding;
             });
         } catch (error) {
-            console.error('Error in getTextEmbedding:', error);
+            console.error('Error generating text embedding:', error);
             return null;
         }
     }
 
     /**
-     * Splits text into chunks
-     * @param {string} text - Input text
-     * @param {number} [chunkSize=50] - Words per chunk
-     * @returns {string[]} Text chunks
+     * Splits text into manageable chunks for embedding.
+     * @param {string} text - The input text to split.
+     * @param {number} [chunkSize=50] - Maximum number of words per chunk.
+     * @returns {string[]} An array of text chunks.
      */
     splitIntoChunks(text, chunkSize = 50) {
         const words = text.toLowerCase().split(/\s+/).filter(word => word.length > 0);
@@ -148,14 +173,17 @@ class SimilaritySearch {
         return chunks;
     }
 
-    /** @type {string[]|null} Stores tokenized query */
+    /**
+     * Stores tokenized query for debugging or reuse.
+     * @type {string[]|null}
+     */
     tokenizedQuery = null;
 
     /**
-     * Tokenizes text for embedding
-     * @param {string} text - Input text
-     * @param {boolean} isQuery - Whether this is a search query
-     * @returns {string[]} Tokens
+     * Tokenizes text into words suitable for embedding.
+     * @param {string} text - The input text to tokenize.
+     * @param {boolean} isQuery - Indicates if the text is a search query.
+     * @returns {string[]} An array of cleaned and filtered tokens.
      */
     tokenize(text, isQuery = false) {
         const cleanedText = text.toLowerCase().replace(/[^a-z0-9\s]/g, '');
@@ -165,10 +193,10 @@ class SimilaritySearch {
     }
 
     /**
-     * Calculates cosine similarity between two embeddings
-     * @param {tf.Tensor} embedding1 - First embedding
-     * @param {tf.Tensor} embedding2 - Second embedding
-     * @returns {number} Similarity score
+     * Computes cosine similarity between two embedding vectors.
+     * @param {tf.Tensor} embedding1 - The first embedding vector.
+     * @param {tf.Tensor} embedding2 - The second embedding vector.
+     * @returns {number} The cosine similarity score (0 if invalid).
      */
     cosineSimilarity(embedding1, embedding2) {
         if (!embedding1 || !embedding2) return 0;
@@ -181,7 +209,10 @@ class SimilaritySearch {
         });
     }
 
-    /** Cleans up TensorFlow resources */
+    /**
+     * Disposes of TensorFlow resources to free memory.
+     * @async
+     */
     async dispose() {
         if (this.embeddings) this.embeddings.dispose();
         for (const tensor of this.cache.values()) tensor.dispose();

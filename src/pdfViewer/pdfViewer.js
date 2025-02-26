@@ -4,8 +4,11 @@ import '../content/content.js';
 pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('pdf.worker.bundle.js');
 
 /**
- * Renders PDF document in the viewer
+ * Renders a PDF document in the viewer, page by page, with text layers.
  * @async
+ * @function renderPDF
+ * @returns {Promise<void>} Resolves when rendering is complete.
+ * @throws {Error} If PDF data cannot be fetched or rendering fails.
  */
 async function renderPDF() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -91,11 +94,12 @@ async function renderPDF() {
 }
 
 /**
- * Fallback method for text layer rendering
+ * Fallback rendering for text layers when primary method fails.
  * @async
- * @param {Object} page - PDF page object
- * @param {HTMLElement} textLayerDiv - Text layer container
- * @param {Object} viewport - Page viewport
+ * @param {Object} page - The PDF page object from pdfjs-dist.
+ * @param {HTMLElement} textLayerDiv - The container for the text layer.
+ * @param {Object} viewport - The viewport settings for the page.
+ * @returns {Promise<void>} Resolves when fallback rendering is complete.
  */
 async function renderTextLayerFallback(page, textLayerDiv, viewport) {
     try {
@@ -117,9 +121,9 @@ async function renderTextLayerFallback(page, textLayerDiv, viewport) {
 }
 
 /**
- * Handles PDF rendering errors
- * @param {Error} error - Rendering error
- * @param {string} url - PDF URL
+ * Displays an error message and download option when PDF rendering fails.
+ * @param {Error} error - The error encountered during rendering.
+ * @param {string} url - The URL of the PDF that failed to render.
  */
 function handleRenderError(error, url) {
     const container = document.getElementById('pdf-container');
@@ -135,10 +139,11 @@ function handleRenderError(error, url) {
 }
 
 /**
- * Fetches local file data
+ * Fetches PDF data from a local file URL.
  * @async
- * @param {string} url - File URL
- * @returns {Promise<ArrayBuffer>}
+ * @param {string} url - The file:// URL of the PDF.
+ * @returns {Promise<ArrayBuffer>} The PDF data as an ArrayBuffer.
+ * @throws {Error} If the fetch operation fails.
  */
 function fetchLocalFile(url) {
     return new Promise((resolve, reject) => {
@@ -152,10 +157,11 @@ function fetchLocalFile(url) {
 }
 
 /**
- * Fetches remote PDF data
+ * Fetches PDF data from a remote URL via the background script.
  * @async
- * @param {string} url - PDF URL
- * @returns {Promise<ArrayBuffer>}
+ * @param {string} url - The remote URL of the PDF.
+ * @returns {Promise<ArrayBuffer>} The PDF data as an ArrayBuffer.
+ * @throws {Error} If the fetch operation fails or data is invalid.
  */
 function fetchRemotePDF(url) {
     return new Promise((resolve, reject) => {
@@ -175,9 +181,10 @@ function fetchRemotePDF(url) {
 }
 
 /**
- * Fetches local PDF data from background script
+ * Fetches locally stored PDF data from the background script.
  * @async
- * @returns {Promise<ArrayBuffer>}
+ * @returns {Promise<ArrayBuffer>} The PDF data as an ArrayBuffer.
+ * @throws {Error} If the data cannot be retrieved or is invalid.
  */
 function fetchLocalPDFData() {
     return new Promise((resolve, reject) => {
