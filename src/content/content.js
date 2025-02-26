@@ -59,7 +59,7 @@ class ContentSearchManager {
                 currentChunk.spans.push(span);
                 wordCount += words.length;
 
-                if (wordCount >= 50) {
+                if (wordCount >= 20) { // Reduced from 50 for more precise highlights
                     chunks.push({ text: currentChunk.text.trim(), spans: [...currentChunk.spans] });
                     currentChunk = { text: '', spans: [] };
                     wordCount = 0;
@@ -105,7 +105,7 @@ class ContentSearchManager {
             currentChunk.nodes.push(node);
             wordCount += words.length;
 
-            if (wordCount >= 50) {
+            if (wordCount >= 20) { // Reduced from 50 for more precise highlights
                 chunks.push({ text: currentChunk.text.trim(), nodes: [...currentChunk.nodes] });
                 currentChunk = { text: '', nodes: [] };
                 wordCount = 0;
@@ -144,7 +144,7 @@ class ContentSearchManager {
                 const fuse = new Fuse(chunks, {
                     keys: ['text'],
                     includeScore: true,
-                    threshold: 0.6
+                    threshold: 0.4 // Reduced from 0.6 for stricter fuzzy matching
                 });
                 const fuseResults = fuse.search(sanitizedQuery);
 
@@ -214,7 +214,7 @@ class ContentSearchManager {
             });
 
             return {
-                matchCount: this.highlightElements.length,
+                matchCount: this.currentMatches.length,
                 currentIndex: this.currentMatchIndex,
                 totalMatches: this.currentMatches.length
             };
@@ -228,13 +228,24 @@ class ContentSearchManager {
 
     /** Updates highlight styles based on current match */
     updateHighlights() {
-        this.highlightElements.forEach((el, index) => {
-            const matchIndex = this.currentMatches.findIndex(match =>
-                (match.spans || match.matchedElements || match.nodes).includes(
-                    el.nodeType === Node.TEXT_NODE ? el.parentElement : el
-                )
-            );
-            el.classList.toggle('fuzzy-search-highlight-active', matchIndex === this.currentMatchIndex);
+        this.highlightElements.forEach(el => {
+            const matchIndex = this.currentMatches.findIndex(match => {
+                const elements = match.matchedElements || match.spans || match.nodes; // Changed order
+                return elements.includes(el.nodeType === Node.TEXT_NODE ? el.parentElement : el);
+            });
+    
+            if (matchIndex === this.currentMatchIndex) {
+                const currentMatch = this.currentMatches[this.currentMatchIndex];
+                const chunkElements = currentMatch.matchedElements || currentMatch.spans || currentMatch.nodes; // Changed order
+                chunkElements.forEach(element => {
+                    const highlightEl = element.nodeType === Node.TEXT_NODE ? element.parentElement : element;
+                    if (highlightEl && highlightEl.classList.contains('fuzzy-search-highlight')) {
+                        highlightEl.classList.add('fuzzy-search-highlight-active');
+                    }
+                });
+            } else {
+                el.classList.remove('fuzzy-search-highlight-active');
+            }
         });
     }
 
@@ -291,11 +302,11 @@ if (!window.googleFzfInitialized) {
             const style = document.createElement('style');
             style.textContent = `
                 .fuzzy-search-highlight {
-                    background-color: #fff59d !important;
+                    background-color: #4A5568 !important;
                     padding: 1px;
                 }
                 .fuzzy-search-highlight-active {
-                    background-color: #FF9800 !important;
+                    background-color: #63B3ED !important;
                     color: #fff !important;
                     padding: 1px;
                 }
@@ -304,37 +315,6 @@ if (!window.googleFzfInitialized) {
             console.log('Highlight CSS injected');
 
             if (chrome?.runtime) {
-                chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-                    (async () => {
-                        try {
-                            switch (request.type) {
-                                case 'PING':
-                                    sendResponse({ status: 'OK' });
-                                    break;
-                                case 'START_SEARCH':
-                                    const result = await searchManager.search(request.query, request.mode);
-                                    sendResponse({ success: true, ...result });
-                                    break;
-                                case 'NEXT_MATCH':
-                                    searchManager.nextMatch();
-                                    sendResponse({ success: true });
-                                    break;
-                                case 'PREV_MATCH':
-                                    searchManager.previousMatch();
-                                    sendResponse({ success: true });
-                                    break;
-                                case 'CANCEL_SEARCH':
-                                    searchManager.isSearching = false;
-                                    clearHighlights();
-                                    sendResponse({ success: true });
-                                    break;
-                            }
-                        } catch (error) {
-                            sendResponse({ success: false, error: error.message });
-                        }
-                    })();
-                    return true;
-                });
                 chrome.runtime.sendMessage({ type: 'CONTENT_SCRIPT_READY' });
             } else {
                 console.warn('Chrome runtime unavailable; extension limited to local functionality');
@@ -342,6 +322,47 @@ if (!window.googleFzfInitialized) {
         } catch (error) {
             console.error('Failed to initialize extension:', error);
         }
+    }
+
+    // Set up message listener immediately
+    if (chrome?.runtime) {
+        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+            if (request.type === 'PING') {
+                sendResponse({ status: 'OK' });
+                return true; // Keep the channel open
+            }
+            // Defer other messages until searchManager is ready
+            if (!searchManager) {
+                sendResponse({ success: false, error: 'Search manager not initialized' });
+                return true;
+            }
+            (async () => {
+                try {
+                    switch (request.type) {
+                        case 'START_SEARCH':
+                            const result = await searchManager.search(request.query, request.mode);
+                            sendResponse({ success: true, ...result });
+                            break;
+                        case 'NEXT_MATCH':
+                            searchManager.nextMatch();
+                            sendResponse({ success: true });
+                            break;
+                        case 'PREV_MATCH':
+                            searchManager.previousMatch();
+                            sendResponse({ success: true });
+                            break;
+                        case 'CANCEL_SEARCH':
+                            searchManager.isSearching = false;
+                            clearHighlights();
+                            sendResponse({ success: true });
+                            break;
+                    }
+                } catch (error) {
+                    sendResponse({ success: false, error: error.message });
+                }
+            })();
+            return true; // Indicate async response
+        });
     }
 
     initializeExtension();

@@ -86,7 +86,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     target: { tabId: tab.id },
                     files: ['content.bundle.js']
                 });
-                // Verify injection worked
+                // Verify injection worked with a slight delay to allow script to load
+                await new Promise(resolve => setTimeout(resolve, 100));
                 const response = await new Promise((resolve) => {
                     chrome.tabs.sendMessage(tab.id, { type: 'PING' }, resolve);
                 });
@@ -104,7 +105,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-        /**
+    /**
      * Performs search operation
      * @async
      * @param {string} query - Search query
@@ -157,6 +158,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    /**
+     * Sends navigation command to content script
+     * @async
+     * @param {string} type - Navigation type ('PREV_MATCH' or 'NEXT_MATCH')
+     */
+    async function navigateMatch(type) {
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (!tab?.id || !await checkContentScript()) {
+                updateStatus('Cannot navigate matches: page not ready', true);
+                return;
+            }
+            const response = await new Promise((resolve) => {
+                chrome.tabs.sendMessage(tab.id, { type }, resolve);
+            });
+            if (!response?.success) {
+                console.warn(`Failed to navigate ${type}:`, response?.error);
+            }
+        } catch (error) {
+            console.error(`Error navigating ${type}:`, error);
+            updateStatus(`Error navigating matches`, true);
+        }
+    }
+
     // Event listeners
     searchInput.addEventListener('input', (e) => {
         clearTimeout(debounceTimeout);
@@ -184,36 +209,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    prevButton.addEventListener('click', async () => {
-        try {
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tab?.id) await chrome.tabs.sendMessage(tab.id, { type: 'PREV_MATCH' });
-        } catch (error) {
-            console.error('Previous match error:', error);
-        }
-    });
+    prevButton.addEventListener('click', () => navigateMatch('PREV_MATCH'));
 
-    nextButton.addEventListener('click', async () => {
-        try {
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tab?.id) await chrome.tabs.sendMessage(tab.id, { type: 'NEXT_MATCH' });
-        } catch (error) {
-            console.error('Next match error:', error);
-        }
-    });
+    nextButton.addEventListener('click', () => navigateMatch('NEXT_MATCH'));
 
     document.addEventListener('keydown', async (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        if (e.key === 'Enter') {
             e.preventDefault();
-            try {
-                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-                if (tab?.id) {
-                    await chrome.tabs.sendMessage(tab.id, { 
-                        type: e.shiftKey ? 'PREV_MATCH' : 'NEXT_MATCH' 
-                    });
-                }
-            } catch (error) {
-                console.error('Keyboard shortcut error:', error);
+            if (e.shiftKey) {
+                await navigateMatch('PREV_MATCH');
+            } else {
+                await navigateMatch('NEXT_MATCH');
             }
         }
     });

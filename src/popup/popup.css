@@ -112,12 +112,12 @@ body {
 
 /* Highlight styles (reference) */
 .fuzzy-search-highlight {
-  background-color: #fff59d;
+  background-color: #4A5568;
   padding: 1px;
 }
 
 .fuzzy-search-highlight-active {
-  background-color: #FF9800;
+  background-color: #63B3ED;
   color: #fff;
   padding: 1px;
 }
