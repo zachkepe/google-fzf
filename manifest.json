@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "Google FZF Search",
     "version": "1.1.0",
-    "description": "Enhance your browsing with AI-powered fuzzy search. Find similar words & phrases on web pages and PDFs, all running locally in your browser.",
+    "description": "Enhance your browsing with AI-powered search modes. Find similar words/phrases on web pages/PDFs, all running locally in your browser.",
     "permissions": [
       "activeTab",
       "scripting",
