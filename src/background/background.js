@@ -1,8 +1,6 @@
 import * as tf from '@tensorflow/tfjs';
 
-/**
- * @typedef {ArrayBuffer|null} PdfData
- */
+/** @typedef {ArrayBuffer|null} PdfData */
 
 /** @type {boolean} TensorFlow initialization status */
 let tfInitialized = false;
@@ -32,6 +30,20 @@ chrome.runtime.onInstalled.addListener(() => {
     initializeTensorFlow();
 });
 
+/**
+ * Converts a Uint8Array to a string in chunks to avoid call stack size exceeded errors.
+ * @param {Uint8Array} uint8Arr - The Uint8Array to convert
+ * @returns {string} The resulting string
+ */
+function uint8ToString(uint8Arr) {
+    const CHUNK_SIZE = 0x8000; // 32768
+    let result = "";
+    for (let i = 0; i < uint8Arr.length; i += CHUNK_SIZE) {
+        result += String.fromCharCode.apply(null, uint8Arr.subarray(i, i + CHUNK_SIZE));
+    }
+    return result;
+}
+
 // Message handler for various background operations
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     switch (request.type) {
@@ -44,7 +56,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         case 'GET_LOCAL_PDF_DATA':
             if (localPdfData) {
                 const bytes = new Uint8Array(localPdfData);
-                const binary = String.fromCharCode(...bytes);
+                const binary = uint8ToString(bytes);
                 const base64Data = btoa(binary);
                 sendResponse({ data: base64Data });
                 localPdfData = null;
@@ -74,7 +86,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 .then(data => {
                     console.log('PDF data fetched, size:', data.byteLength);
                     const bytes = new Uint8Array(data);
-                    const binary = String.fromCharCode(...bytes);
+                    const binary = uint8ToString(bytes);
                     const base64Data = btoa(binary);
                     sendResponse({ data: base64Data });
                 })

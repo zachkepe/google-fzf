@@ -1,21 +1,29 @@
-/* Matches Chrome's UI aesthetic with improved readability */
+@font-face {
+  font-family: 'Roboto';
+  src: url('fonts/Roboto-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+/* Matches Google's clean aesthetic with improved readability */
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", Oxygen, Ubuntu, Cantarell, sans-serif;
   background: #121212;
   min-width: 350px;
 }
 
-/* Finder bar container */
+/* Finder bar container - rounded corners and subtle shadow */
 .find-bar {
   display: flex;
   align-items: center;
-  background-color: #1A1A1A;
-  border-radius: 8px;
-  padding: 6px 10px;
+  background-color: #202124; /* Google’s dark gray from dark mode */
+  border-radius: 24px; /* More pronounced rounding like Google's search bar */
+  padding: 8px 12px; /* Slightly more padding for comfort */
   box-sizing: border-box;
-  min-height: 40px;
+  min-height: 44px; /* Slightly taller like Google’s bar */
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2); /* Subtle shadow for elevation */
 }
 
 /* Search input */
@@ -24,14 +32,16 @@ body {
   border: none;
   outline: none;
   background: transparent;
-  font-size: 14px;
+  font-size: 16px; /* Matches Google's input size */
   padding: 4px 8px;
-  color: #E0E0E0;
-  caret-color: #E0E0E0;
+  color: #E8EAED; /* Light gray text from Google’s dark theme */
+  caret-color: #E8EAED;
+  font-family: "Roboto", sans-serif; /* Consistent font */
 }
 
+/* Placeholder styling */
 .find-bar input[type="text"]::placeholder {
-  color: #757575;
+  color: #8AB4F8; /* Google’s placeholder blue-gray */
   opacity: 1;
 }
 
@@ -40,11 +50,12 @@ body {
   background: transparent;
   border: none;
   outline: none;
-  color: #E0E0E0;
+  color: #E8EAED;
   font-size: 14px;
   margin-left: 8px;
   appearance: none;
   padding: 4px;
+  font-family: "Roboto", sans-serif; /* Consistent font */
 }
 
 .find-bar select::-ms-expand {
@@ -54,18 +65,19 @@ body {
 /* Visual divider */
 .find-bar .divider {
   width: 1px;
-  height: 20px;
-  background-color: #424242;
-  margin: 0 8px;
+  height: 24px; /* Slightly taller to match new height */
+  background-color: #5F6368; /* Google’s divider color */
+  margin: 0 12px; /* More spacing for balance */
 }
 
 /* Match counter */
 .find-bar #match-position {
-  color: #E0E0E0;
+  color: #E8EAED;
   font-size: 14px;
-  margin: 0 8px;
+  margin: 0 12px; /* More spacing */
   min-width: 40px;
   text-align: center;
+  font-family: "Roboto", sans-serif; /* Consistent font */
 }
 
 /* Control buttons */
@@ -73,17 +85,17 @@ body {
   border: none;
   background: none;
   cursor: pointer;
-  color: #B0B0B0;
-  font-size: 14px;
+  color: #B0BEC5; /* Softer gray from Google’s icons */
+  font-size: 16px; /* Slightly larger for visibility */
   padding: 4px;
-  margin: 0 4px;
+  margin: 0 6px; /* More spacing */
   outline: none;
   min-width: 20px;
   text-align: center;
 }
 
 .find-bar button:hover {
-  color: #E0E0E0;
+  color: #E8EAED; /* Brighter on hover */
 }
 
 .find-bar button:active {
@@ -100,24 +112,25 @@ body {
 .info-bar {
   display: flex;
   justify-content: space-between;
-  margin-top: 4px;
-  padding: 0 10px;
+  margin-top: 6px; /* Slightly more spacing */
+  padding: 0 12px;
   font-size: 12px;
-  color: #B0B0B0;
+  color: #B0BEC5; /* Google’s secondary text color */
   box-sizing: border-box;
+  font-family: "Roboto", sans-serif; /* Consistent font */
 }
 
-.error { color: #EF5350 !important; }
-.success { color: #66BB6A !important; }
+.error { color: #F28B82 !important; } /* Google’s error red */
+.success { color: #81C995 !important; } /* Google’s success green */
 
-/* Highlight styles (reference) */
+/* Highlight styles (reference) - unchanged but aligned with Google colors */
 .fuzzy-search-highlight {
   background-color: #4A5568;
   padding: 1px;
 }
 
 .fuzzy-search-highlight-active {
-  background-color: #63B3ED;
-  color: #fff;
+  background-color: #8AB4F8; /* Google’s blue highlight */
+  color: #202124; /* Dark text for contrast */
   padding: 1px;
 }

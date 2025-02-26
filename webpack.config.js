@@ -53,7 +53,8 @@ module.exports = {
                 { from: 'src/data/embeddings.json', to: 'embeddings.json' },
                 { from: 'node_modules/pdfjs-dist/build/pdf.worker.mjs', to: 'pdf.worker.bundle.js' },
                 { from: 'src/pdfViewer/pdfViewer.html', to: 'pdfViewer.html' },
-                { from: 'icons', to: 'icons' }
+                { from: 'icons', to: 'icons' },
+                { from: 'src/fonts', to: 'fonts' }
             ]
         })
     ]
