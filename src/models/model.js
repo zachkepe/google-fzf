@@ -19,12 +19,12 @@ class SimilaritySearch {
         this.wordToIndex = null;
         this.embeddings = null;
         this.cache = new Map();
-        this.isInitialized = false; // Added to track initialization state
+        this.isInitialized = false;
         SimilaritySearch.instance = this;
     }
 
     /**
-     * Initializes TensorFlow and loads embeddings
+     * Initializes embeddings, relying on background script for TensorFlow
      * @async
      * @returns {Promise<void>}
      */
@@ -32,68 +32,22 @@ class SimilaritySearch {
         if (this.isInitialized) return;
         try {
             if (!SimilaritySearch.tfInitialized) {
-                if (chrome?.runtime?.sendMessage) {
-                    const response = await new Promise(resolve =>
-                        chrome.runtime.sendMessage({ type: 'GET_TF_STATUS' }, resolve)
-                    );
-                    if (response?.initialized) {
-                        SimilaritySearch.tfInitialized = true;
-                    } else {
-                        try {
-                            await tf.setBackend('webgl');
-                            console.log('TensorFlow.js initialized locally with WebGL backend');
-                            SimilaritySearch.tfInitialized = true;
-                        } catch (error) {
-                            if (error.message.includes('already registered')) {
-                                console.warn('TensorFlow.js backend already registered, assuming initialized');
-                                SimilaritySearch.tfInitialized = true;
-                            } else {
-                                console.error('Failed to initialize TensorFlow.js locally:', error);
-                                throw error;
-                            }
-                        }
-                    }
-                } else {
-                    try {
-                        await tf.setBackend('webgl');
-                        console.log('TensorFlow.js initialized locally (no runtime)');
-                        SimilaritySearch.tfInitialized = true;
-                    } catch (error) {
-                        if (error.message.includes('already registered')) {
-                            console.warn('TensorFlow.js backend already registered, assuming initialized');
-                            SimilaritySearch.tfInitialized = true;
-                        } else {
-                            console.error('Failed to initialize TensorFlow.js locally:', error);
-                            throw error;
-                        }
-                    }
-                }
-            }
-
-            // Validate chrome runtime availability
-            if (!chrome?.runtime?.getURL) {
-                const isPDF = window.location.href.toLowerCase().endsWith('.pdf');
-                throw new Error(
-                    isPDF
-                        ? 'Resource loading unavailable in Chrome PDF viewer. Download the PDF and open locally.'
-                        : 'chrome.runtime unavailable; cannot load embeddings.'
+                const response = await new Promise(resolve =>
+                    chrome.runtime.sendMessage({ type: 'GET_TF_STATUS' }, resolve)
                 );
+                if (!response?.initialized) {
+                    throw new Error('TensorFlow.js not initialized in background script');
+                }
+                SimilaritySearch.tfInitialized = true;
             }
 
-            // Load embeddings
-            try {
-                const embeddingsUrl = chrome.runtime.getURL('embeddings.json');
-                console.log('Attempting to fetch embeddings from:', embeddingsUrl);
-                const response = await fetch(embeddingsUrl, { method: 'GET' });
-                if (!response.ok) throw new Error(`Failed to fetch embeddings: ${response.status}`);
-                const data = await response.json();
-                this.wordToIndex = data.vocabulary;
-                this.embeddings = tf.tensor2d(data.embeddings, [VOCAB_SIZE, EMBEDDING_DIM]);
-                console.log('Word embeddings loaded successfully');
-            } catch (error) {
-                console.error('Failed to initialize embeddings:', error);
-                throw error;
-            }
+            const embeddingsUrl = chrome.runtime.getURL('embeddings.json');
+            const response = await fetch(embeddingsUrl, { method: 'GET' });
+            if (!response.ok) throw new Error(`Failed to fetch embeddings: ${response.status}`);
+            const data = await response.json();
+            this.wordToIndex = data.vocabulary;
+            this.embeddings = tf.tensor2d(data.embeddings, [VOCAB_SIZE, EMBEDDING_DIM]);
+            console.log('Word embeddings loaded successfully');
             this.isInitialized = true;
             console.log('SimilaritySearch initialized');
         } catch (error) {
@@ -228,10 +182,12 @@ class SimilaritySearch {
     }
 
     /** Cleans up TensorFlow resources */
-    dispose() {
+    async dispose() {
         if (this.embeddings) this.embeddings.dispose();
         for (const tensor of this.cache.values()) tensor.dispose();
         this.cache.clear();
+        this.isInitialized = false;
+        console.log('SimilaritySearch resources disposed');
     }
 }
 

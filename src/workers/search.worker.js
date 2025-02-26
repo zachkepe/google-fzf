@@ -25,6 +25,11 @@ let embeddingCache = new Map();
 self.onmessage = async function(e) {
     if (e.data.type === 'INIT') {
         try {
+            if (!tf.getBackend()) {
+                await tf.setBackend('webgl');
+                await tf.ready();
+                console.log('TensorFlow.js initialized in worker with WebGL backend');
+            }
             const response = await fetch(e.data.embeddingsUrl);
             const data = await response.json();
             wordToIndex = data.vocabulary;

@@ -16,18 +16,30 @@ async function initializeTensorFlow() {
     if (tfInitialized) return;
     
     try {
-        await tf.setBackend('webgl');
-        console.log('TensorFlow.js initialized with WebGL backend');
+        if (!tf.getBackend()) {
+            await tf.setBackend('webgl');
+            await tf.ready(); // Ensure all kernels are registered
+            console.log('TensorFlow.js initialized with WebGL backend');
+        } else if (tf.getBackend() !== 'webgl') {
+            console.warn('Another backend is already set:', tf.getBackend());
+            await tf.setBackend('webgl'); // Force WebGL if possible
+            await tf.ready();
+        } else {
+            console.log('TensorFlow.js already initialized with WebGL backend');
+        }
         tfInitialized = true;
     } catch (error) {
         console.error('Failed to initialize TensorFlow.js:', error);
+        tfInitialized = false; // Ensure status reflects failure
     }
 }
 
-// Extension installation handler
+// Initialize TensorFlow immediately on background script load
+initializeTensorFlow();
+
+// Extension installation handler (now just logs, since initialization is immediate)
 chrome.runtime.onInstalled.addListener(() => {
     console.log('Extension installed');
-    initializeTensorFlow();
 });
 
 /**
@@ -66,7 +78,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             break;
 
         case 'GET_TF_STATUS':
-            sendResponse({ initialized: tfInitialized });
+            sendResponse({ initialized: tfInitialized && tf.getBackend() === 'webgl' });
             break;
 
         case 'FETCH_EMBEDDINGS':
@@ -120,7 +132,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(
     { url: [{ urlMatches: '.*\\.pdf$' }] }
 );
 
-// Opens the popup.
+// Opens the popup
 chrome.commands.onCommand.addListener((command) => {
     if (command === '_execute_action') {
         chrome.action.openPopup();

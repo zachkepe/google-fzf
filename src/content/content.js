@@ -247,13 +247,13 @@ class ContentSearchManager {
     updateHighlights() {
         this.highlightElements.forEach(el => {
             const matchIndex = this.currentMatches.findIndex(match => {
-                const elements = match.matchedElements || match.spans || match.nodes; // Changed order
+                const elements = match.matchedElements || match.spans || match.nodes;
                 return elements.includes(el.nodeType === Node.TEXT_NODE ? el.parentElement : el);
             });
     
             if (matchIndex === this.currentMatchIndex) {
                 const currentMatch = this.currentMatches[this.currentMatchIndex];
-                const chunkElements = currentMatch.matchedElements || currentMatch.spans || currentMatch.nodes; // Changed order
+                const chunkElements = currentMatch.matchedElements || currentMatch.spans || currentMatch.nodes;
                 chunkElements.forEach(element => {
                     const highlightEl = element.nodeType === Node.TEXT_NODE ? element.parentElement : element;
                     if (highlightEl && highlightEl.classList.contains('fuzzy-search-highlight')) {
@@ -346,7 +346,7 @@ if (!window.googleFzfInitialized) {
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if (request.type === 'PING') {
                 sendResponse({ status: 'OK' });
-                return true; // Keep the channel open
+                return true;
             }
             if (request.type === 'GET_SELECTION') {
                 const selection = window.getSelection().toString().trim();
@@ -376,6 +376,7 @@ if (!window.googleFzfInitialized) {
                         case 'CANCEL_SEARCH':
                             searchManager.isSearching = false;
                             clearHighlights();
+                            searchManager.similaritySearch.dispose();
                             sendResponse({ success: true });
                             break;
                     }
@@ -383,7 +384,7 @@ if (!window.googleFzfInitialized) {
                     sendResponse({ success: false, error: error.message });
                 }
             })();
-            return true; // Indicate async response
+            return true;
         });
     }
 
