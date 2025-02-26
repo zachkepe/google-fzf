@@ -348,6 +348,11 @@ if (!window.googleFzfInitialized) {
                 sendResponse({ status: 'OK' });
                 return true; // Keep the channel open
             }
+            if (request.type === 'GET_SELECTION') {
+                const selection = window.getSelection().toString().trim();
+                sendResponse({ selection });
+                return true;
+            }
             // Defer other messages until searchManager is ready
             if (!searchManager) {
                 sendResponse({ success: false, error: 'Search manager not initialized' });
