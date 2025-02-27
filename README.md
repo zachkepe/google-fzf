@@ -48,21 +48,15 @@ Below are visual examples of the extension in action.
 
 ### Search Popup Interface
 
-![Search Popup Interface](docs/search-popup.png)
+<img src="docs/search-popup.png" width="400">
 
 *The search popup with mode selection and match navigation.*
 
-### Highlighting Matches on a Web Page
+### Highlighting Matches on a Web Page/PDF
 
-![Highlighting Matches on a Web Page](docs/web-search.gif)
+<img src="docs/pdf-search.gif" width="400">
 
-*Highlighting matches on a webpage with real-time updates.*
-
-### PDF Search and Navigation
-
-![PDF Search and Navigation](docs/pdf-search.gif)
-
-*Searching within a PDF document with custom viewer.*
+*Highlighting matches on a webpage/PDF with real-time updates.*
 
 ## 🔧 Technical Overview
 
