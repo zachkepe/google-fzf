@@ -114,17 +114,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     const binary = uint8ToString(bytes);
                     const base64Data = btoa(binary);
                     try {
+                        if (chrome.runtime.lastError) {
+                            console.warn('Message channel already closed:', chrome.runtime.lastError);
+                            return;
+                        }
                         sendResponse({ data: base64Data });
                     } catch (e) {
-                        console.warn('Message channel closed before response could be sent:', e);
+                        console.warn('Failed to send response:', e);
                     }
                 })
                 .catch(error => {
                     console.error('PDF fetch failed:', error);
                     try {
+                        if (chrome.runtime.lastError) {
+                            console.warn('Message channel already closed on error:', chrome.runtime.lastError);
+                            return;
+                        }
                         sendResponse({ error: error.message });
                     } catch (e) {
-                        console.warn('Message channel closed before error response:', e);
+                        console.warn('Failed to send error response:', e);
                     }
                 });
             return true;

@@ -3,6 +3,27 @@ import '../content/content.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('pdf.worker.bundle.js');
 
+// Track current request to allow cancellation
+let currentRequest = null;
+// Track search timeout for debouncing
+let searchTimeout = null;
+
+/**
+ * Debounces search operations to prevent multiple concurrent requests
+ * @param {Function} searchFn - The search function to call
+ * @param {string} searchTerm - The search term
+ */
+function debouncedSearch(searchFn, searchTerm) {
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
+    }
+    
+    searchTimeout = setTimeout(() => {
+        searchFn(searchTerm);
+        searchTimeout = null;
+    }, 300); // 300ms delay
+}
+
 /**
  * Renders a PDF document in the viewer, page by page, with text layers.
  * @async
@@ -11,16 +32,31 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('pdf.worker.bundl
  * @throws {Error} If PDF data cannot be fetched or rendering fails.
  */
 async function renderPDF() {
+    // Cancel any ongoing request
+    if (currentRequest) {
+        // If using AbortController
+        if (currentRequest.abort) {
+            currentRequest.abort();
+        }
+        currentRequest = null;
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
     let pdfData;
 
     try {
+        // Create AbortController for fetch operations if needed
+        const controller = new AbortController();
+        currentRequest = controller;
+
         if (urlParams.has('local')) {
-            pdfData = await fetchLocalPDFData();
+            pdfData = await fetchLocalPDFData(controller.signal);
         } else {
             const pdfUrl = urlParams.get('file');
             if (!pdfUrl) throw new Error('No PDF URL provided');
-            pdfData = pdfUrl.startsWith('file://') ? await fetchLocalFile(pdfUrl) : await fetchRemotePDF(pdfUrl);
+            pdfData = pdfUrl.startsWith('file://') ? 
+                await fetchLocalFile(pdfUrl, controller.signal) : 
+                await fetchRemotePDF(pdfUrl);
         }
 
         console.log('PDF data received, size:', pdfData.byteLength);
@@ -36,6 +72,11 @@ async function renderPDF() {
         container.innerHTML = '';
 
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            // Check if rendering was cancelled
+            if (!currentRequest) {
+                throw new Error('Rendering cancelled');
+            }
+
             const page = await pdf.getPage(pageNum);
             const viewport = page.getViewport({ scale: 1.5 });
 
@@ -87,7 +128,9 @@ async function renderPDF() {
         }
 
         console.log('PDF rendered successfully');
+        currentRequest = null;
     } catch (error) {
+        currentRequest = null;
         console.error('Error rendering PDF:', error);
         handleRenderError(error, urlParams.get('file'));
     }
@@ -142,14 +185,28 @@ function handleRenderError(error, url) {
  * Fetches PDF data from a local file URL.
  * @async
  * @param {string} url - The file:// URL of the PDF.
+ * @param {AbortSignal} signal - Optional AbortSignal to cancel the request.
  * @returns {Promise<ArrayBuffer>} The PDF data as an ArrayBuffer.
  * @throws {Error} If the fetch operation fails.
  */
-function fetchLocalFile(url) {
+function fetchLocalFile(url, signal) {
     return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('GET', url, true);
         xhr.responseType = 'arraybuffer';
+        
+        // Handle abort if signal is provided
+        if (signal) {
+            if (signal.aborted) {
+                return reject(new Error('Aborted'));
+            }
+            
+            signal.addEventListener('abort', () => {
+                xhr.abort();
+                reject(new Error('Aborted'));
+            });
+        }
+        
         xhr.onload = () => (xhr.status === 200 || xhr.status === 0) ? resolve(xhr.response) : reject(new Error('HTTP error ' + xhr.status));
         xhr.onerror = () => reject(new Error('Network error'));
         xhr.send();
@@ -165,17 +222,30 @@ function fetchLocalFile(url) {
  */
 function fetchRemotePDF(url) {
     return new Promise((resolve, reject) => {
+        // Add a timeout to prevent hanging requests
+        const timeoutId = setTimeout(() => {
+            reject(new Error('Request timed out after 30 seconds'));
+        }, 30000);
+        
         chrome.runtime.sendMessage({ type: 'FETCH_PDF', url }, response => {
-            if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
-            if (response.error) return reject(new Error(response.error));
-            if (!response.data) return reject(new Error('Invalid PDF data'));
-
-            const binaryString = atob(response.data);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
+            clearTimeout(timeoutId); // Clear the timeout
+            
+            if (chrome.runtime.lastError) {
+                return reject(new Error(chrome.runtime.lastError.message));
             }
-            resolve(bytes.buffer);
+            if (response?.error) return reject(new Error(response.error));
+            if (!response?.data) return reject(new Error('Invalid or missing PDF data'));
+
+            try {
+                const binaryString = atob(response.data);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                resolve(bytes.buffer);
+            } catch (e) {
+                reject(new Error(`Failed to process PDF data: ${e.message}`));
+            }
         });
     });
 }
@@ -183,24 +253,88 @@ function fetchRemotePDF(url) {
 /**
  * Fetches locally stored PDF data from the background script.
  * @async
+ * @param {AbortSignal} signal - Optional AbortSignal to cancel the request.
  * @returns {Promise<ArrayBuffer>} The PDF data as an ArrayBuffer.
  * @throws {Error} If the data cannot be retrieved or is invalid.
  */
-function fetchLocalPDFData() {
+function fetchLocalPDFData(signal) {
     return new Promise((resolve, reject) => {
+        // Handle abort if signal is provided
+        if (signal && signal.aborted) {
+            return reject(new Error('Aborted'));
+        }
+        
+        // Add a timeout to prevent hanging requests
+        const timeoutId = setTimeout(() => {
+            reject(new Error('Request timed out after 30 seconds'));
+        }, 30000);
+        
         chrome.runtime.sendMessage({ type: 'GET_LOCAL_PDF_DATA' }, response => {
-            if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
-            if (response.error) return reject(new Error(response.error));
-            if (!response.data) return reject(new Error('Invalid PDF data'));
-
-            const binaryString = atob(response.data);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
+            clearTimeout(timeoutId); // Clear the timeout
+            
+            if (chrome.runtime.lastError) {
+                return reject(new Error(chrome.runtime.lastError.message));
             }
-            resolve(bytes.buffer);
+            if (response?.error) return reject(new Error(response.error));
+            if (!response?.data) return reject(new Error('Invalid or missing PDF data'));
+
+            try {
+                const binaryString = atob(response.data);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                resolve(bytes.buffer);
+            } catch (e) {
+                reject(new Error(`Failed to process PDF data: ${e.message}`));
+            }
         });
     });
 }
 
-renderPDF();
+/**
+ * Performs a search operation within the PDF
+ * @param {string} searchTerm - The text to search for
+ */
+function performSearch(searchTerm) {
+    // Implement your search logic here
+    console.log(`Searching for: ${searchTerm}`);
+    
+    // Example implementation:
+    const textLayers = document.querySelectorAll('.textLayer');
+    // Clear previous highlights
+    document.querySelectorAll('.search-highlight').forEach(el => {
+        el.classList.remove('search-highlight');
+    });
+    
+    if (!searchTerm) return;
+    
+    let foundCount = 0;
+    textLayers.forEach(layer => {
+        const textElements = layer.querySelectorAll('span');
+        textElements.forEach(span => {
+            if (span.textContent.toLowerCase().includes(searchTerm.toLowerCase())) {
+                span.classList.add('search-highlight');
+                foundCount++;
+            }
+        });
+    });
+    
+    console.log(`Found ${foundCount} matches for "${searchTerm}"`);
+}
+
+// Set up search input if it exists
+document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('pdf-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            debouncedSearch(performSearch, e.target.value);
+        });
+    }
+    
+    // Start rendering the PDF
+    renderPDF();
+});
+
+// Export the render function for potential external use
+export { renderPDF };
