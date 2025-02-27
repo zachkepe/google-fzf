@@ -7,7 +7,7 @@ const path = require('path');
  * @constant {number} VOCAB_SIZE - Maximum number of vocabulary words to process from the GloVe file.
  */
 const gloveFile = path.join(__dirname, '..', 'glove.6B.50d.txt');
-const VOCAB_SIZE = 15000;
+const VOCAB_SIZE = 7000;
 
 /**
  * Asynchronously generates word embeddings from a GloVe file and saves them as a JSON file.

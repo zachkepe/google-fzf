@@ -4,7 +4,7 @@ import * as tf from '@tensorflow/tfjs';
  * Vocabulary size for the embedding model.
  * @constant {number}
  */
-const VOCAB_SIZE = 15000;
+const VOCAB_SIZE = 7000;
 
 /**
  * Dimension of each word embedding vector.

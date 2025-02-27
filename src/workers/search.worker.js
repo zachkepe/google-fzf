@@ -22,7 +22,7 @@ const CONTEXT_WORDS = 10;
  * Vocabulary size for embeddings.
  * @constant {number}
  */
-const VOCAB_SIZE = 15000;
+const VOCAB_SIZE = 7000;
 
 /**
  * Dimension of embedding vectors.

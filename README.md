@@ -1,57 +1,99 @@
-# GoogleFZF
-GoogleFZF is an open-source Chrome extension that enhances web and PDF search with AI-powered contextual capabilities. Unlike traditional "Ctrl/Cmd+F", it understands similar words and phrases, running entirely in-browser for privacy and speed.
+# Google FZF Search
 
-## Features
-- Semantic Search: Finds contextually similar text using GloVe embeddings and cosine similarity.
-- Fuzzy Search: Matches approximate text with Fuse.js.
-- Exact Search: Classic keyword matching.
-- PDF Support: Intercepts and renders PDFs with searchable text layers.
-- Privacy-First: All processing happens locally, no data leaves your browser.
+**Version:** 1.1.0 | **License:** MIT
 
-## Architecture
-- Background: Manages TensorFlow.js initialization, PDF fetching, and message passing.
-- Content: Handles page text extraction, highlighting, and search execution.
-- Popup: Provides a sleek UI with mode selection and match navigation.
-- Worker: Offloads semantic search computation for performance.
-- Tech Stack: TensorFlow.js, GloVe embeddings, pdfjs-dist, Fuse.js.
+Google FZF Search is an AI-powered Chrome extension that enhances web and PDF search capabilities directly in your browser. Leveraging local machine learning with TensorFlow.js and pre-trained GloVe embeddings, it provides fast, privacy-preserving semantic, exact, and fuzzy search functionality without relying on external servers.
 
-## Getting Started
-### Prerequisites
-- Node.js 16+
-- Chrome 88+
+## ✨ Features
 
-### Generating Embeddings
-``` bash
-cd google-fzf
-node scripts/generate-embeddings.js
-```
+- **Multi-Mode Search**: Choose between semantic (meaning-based), exact (literal), or fuzzy (approximate) search modes
+- **Web & PDF Support**: Seamlessly search across HTML pages and PDFs with a custom viewer
+- **Local Processing**: All computation runs client-side using TensorFlow.js with WebGL acceleration
+- **Efficient Highlighting**: Matches are visually highlighted with navigation controls for next/previous results
+- **Keyboard Shortcuts**: Trigger the popup with `Ctrl+Shift+S` (or `Cmd+Shift+S` on Mac) and navigate matches with `Enter`/`Shift+Enter`
+- **Rate Limiting**: Built-in token bucket rate limiter ensures performance stability
 
-### Running the Extension
-1. Run `npm install` to install dependencies.
-2. Run `npm run build` to build the extension.
-3. Open Chrome, go to chrome://extensions/.
-4. Enable Developer Mode.
-5. Click "Load unpacked" and select the dist folder.
+## 🚀 Installation
 
-## Shortcuts
-- Mac: `Command+Shift+S` - Open popup
-- Windows: `Ctrl+Shift+S` - Open popup
-- `Ctrl+Shift+M` - Cycle search modes
-- `Enter` - Next match
-- `Shift+Enter` - Previous match
+1. **Clone the Repository**
+   ``` bash
+   git clone https://github.com/zachkepe/google-fzf.git
+   ```
 
-## Contributing
-We welcome contributions! To get started:
-1. Fork the repo on GitHub.
-2. Make changes in your fork.
-3. Submit a pull request with a clear description.
+2. **Install Dependencies**
+   ``` bash
+   cd google-fzf && npm install
+   ```
 
-Why contribute? Enhance an open source, cutting-edge tool!
+3. **Build the Extension**
+   ``` bash
+   npm run build
+   ```
 
-## Troubleshooting
-- PDF Fails to Load: May be due to CORS. Use "Download PDF" to save locally.
-- Slow Search: Reduce VOCAB_SIZE in config.js (future feature) or ensure WebGL is enabled.
-- Extension Not Loading: Check console for errors and ensure all files are in dist.
+4. **Load into Chrome**
+   - Open Chrome and navigate to `chrome://extensions/`
+   - Enable "Developer mode" in the top right
+   - Click "Load unpacked" and select the `dist/` folder from the project root
 
-## License
-MIT © Zachary Kepe
+## 📝 Usage
+
+- **Open the Popup**: Use `Ctrl+Shift+S` (or `Cmd+Shift+S` on Mac) to launch the search interface
+- **Search Modes**: Select from "Semantic," "Exact," or "Fuzzy" via the dropdown
+- **Navigate Results**: Use the up/down arrow buttons or `Enter`/`Shift+Enter` to cycle through matches
+- **PDF Viewing**: Automatically intercepts `.pdf` URLs and renders them in a searchable viewer
+
+## 🎮 Demonstration
+
+Below are visual examples of the extension in action.
+
+### Search Popup Interface
+
+![Search Popup Interface](docs/search-popup.png)
+
+*The search popup with mode selection and match navigation.*
+
+### Highlighting Matches on a Web Page
+
+![Highlighting Matches on a Web Page](docs/web-search.gif)
+
+*Highlighting matches on a webpage with real-time updates.*
+
+### PDF Search and Navigation
+
+![PDF Search and Navigation](docs/pdf-search.gif)
+
+*Searching within a PDF document with custom viewer.*
+
+## 🔧 Technical Overview
+
+- **Architecture**: Built as a Chrome Manifest V3 extension with a service worker background script, content scripts, and a popup UI
+- **Machine Learning**: Utilizes TensorFlow.js with pre-trained GloVe 6B 50D embeddings (15,000-word vocabulary) for semantic search
+- **Dependencies**:
+  - `@tensorflow/tfjs`: Core ML framework with WebGL backend
+  - `fuse.js`: Fuzzy search implementation
+  - `pdfjs-dist`: PDF rendering and text extraction
+- **Build Tooling**: Webpack with Babel for module bundling and ES6+ compatibility
+
+## 💻 Development
+
+- **Dev Mode**: `npm run dev` (watches for changes and rebuilds)
+- **Clean Build**: `npm run clean && npm run build`
+- **Embedding Generation**: Run `node scripts/generate-embeddings.js` to regenerate `embeddings.json` from `glove.6B.50d.txt` (optional, pre-built file included)
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Commit changes (`git commit -m "Add your feature"`)
+4. Push to the branch (`git push origin feature/your-feature`)
+5. Open a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+## 📞 Contact
+
+For issues or inquiries, please file a ticket on the [GitHub Issues](https://github.com/zachkepe/google-fzf/issues) page or contact Zach Kepe directly.
