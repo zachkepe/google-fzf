@@ -19,22 +19,47 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const storageAvailable = (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local);
 
+    // Wait for content script readiness before proceeding
     const pageSearchable = await isSearchablePage();
-    if (pageSearchable) {
-        if (storageAvailable) {
-            chrome.storage.local.get(['fzfLastMode', 'fzfLastQuery'], (result) => {
-                if (result.fzfLastMode) searchMode.value = result.fzfLastMode;
-                if (result.fzfLastQuery) searchInput.value = result.fzfLastQuery;
-                checkForSelection();
-            });
-        } else {
-            console.warn('chrome.storage.local not available, using defaults.');
-            checkForSelection();
-        }
-    } else {
+    if (!pageSearchable) {
         searchInput.disabled = true;
         searchInput.placeholder = 'Cannot search page';
         confirmButton.disabled = true;
+        return;
+    }
+
+    const contentScriptReady = await waitForContentScript();
+    if (!contentScriptReady) {
+        console.warn('Content script not ready after timeout; functionality may be limited');
+        searchInput.placeholder = 'Page not fully loaded yet';
+        searchInput.disabled = true;
+        confirmButton.disabled = true;
+        return;
+    }
+
+    if (storageAvailable) {
+        chrome.storage.local.get(['fzfLastMode', 'fzfLastQuery'], (result) => {
+            if (result.fzfLastMode) searchMode.value = result.fzfLastMode;
+            if (result.fzfLastQuery) searchInput.value = result.fzfLastQuery;
+            checkForSelection();
+        });
+    } else {
+        console.warn('chrome.storage.local not available, using defaults.');
+        checkForSelection();
+    }
+
+    /**
+     * Waits for the content script to be ready with a timeout.
+     * @async
+     * @returns {Promise<boolean>} True if ready, false if timed out.
+     */
+    async function waitForContentScript(timeoutMs = 2000) {
+        const startTime = Date.now();
+        while (Date.now() - startTime < timeoutMs) {
+            if (await checkContentScript()) return true;
+            await new Promise(resolve => setTimeout(resolve, 100)); // Poll every 100ms
+        }
+        return false;
     }
 
     /**
@@ -42,17 +67,18 @@ document.addEventListener('DOMContentLoaded', async () => {
      * @async
      */
     async function checkForSelection() {
-        if (!(await isSearchablePage())) {
-            searchInput.disabled = true;
-            searchInput.placeholder = 'Cannot search page';
-            confirmButton.disabled = true;
-            return;
-        }
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tab?.id || !(await checkContentScript())) return;
-        const response = await new Promise(resolve =>
-            chrome.tabs.sendMessage(tab.id, { type: 'GET_SELECTION' }, resolve)
-        );
+        if (!tab?.id) return;
+        const response = await new Promise(resolve => {
+            chrome.tabs.sendMessage(tab.id, { type: 'GET_SELECTION' }, resp => {
+                if (chrome.runtime.lastError) {
+                    console.log('Initial selection check failed (may occur on first load):', chrome.runtime.lastError.message);
+                    resolve(null);
+                } else {
+                    resolve(resp);
+                }
+            });
+        });
         if (response?.selection) {
             searchInput.value = response.selection;
             await performSearch(response.selection, searchMode.value);
@@ -108,27 +134,37 @@ document.addEventListener('DOMContentLoaded', async () => {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             if (!tab?.id || !(await isSearchablePage())) return false;
 
-            const pingContentScript = () => new Promise(resolve =>
-                chrome.tabs.sendMessage(tab.id, { type: 'PING' }, resolve)
-            );
+            const pingContentScript = () => new Promise(resolve => {
+                chrome.tabs.sendMessage(tab.id, { type: 'PING' }, response => {
+                    if (chrome.runtime.lastError) {
+                        resolve(null);
+                    } else {
+                        resolve(response);
+                    }
+                });
+            });
 
             let response = await pingContentScript();
             if (response?.status === 'OK') return true;
 
             for (let attempt = 0; attempt < retries; attempt++) {
                 console.log(`Content script not responding, attempt ${attempt + 1}/${retries}`);
-                await chrome.scripting.executeScript({
-                    target: { tabId: tab.id },
-                    files: ['content.bundle.js']
-                });
-                await new Promise(resolve => setTimeout(resolve, delayMs));
-                response = await pingContentScript();
-                if (response?.status === 'OK') {
-                    console.log('Content script reinjected successfully');
-                    return true;
+                try {
+                    await chrome.scripting.executeScript({
+                        target: { tabId: tab.id },
+                        files: ['content.bundle.js']
+                    });
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                    response = await pingContentScript();
+                    if (response?.status === 'OK') {
+                        console.log('Content script successfully reinjected');
+                        return true;
+                    }
+                } catch (injectionError) {
+                    console.error(`Injection attempt ${attempt + 1} failed:`, injectionError);
                 }
             }
-            console.error('Failed to connect to content script after retries');
+            console.log('Failed to connect to content script after retries');
             return false;
         } catch (error) {
             console.error('Error checking content script:', error);

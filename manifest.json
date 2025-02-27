@@ -29,7 +29,8 @@
         "https://*/*",
         "file://*/*"
       ],
-      "js": ["content.bundle.js"]
+      "js": ["content.bundle.js"],
+      "run_at": "document_idle"
     }],
     "action": {
       "default_popup": "popup.html",
