@@ -186,10 +186,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             updateMatchPosition();
             return;
         }
-        if (query.trim().length < 2) {
-            console.log('Query must be at least 2 characters');
-            return;
-        }
         if (!(await isSearchablePage())) {
             console.warn('Page not searchable, aborting.');
             return;
@@ -251,7 +247,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     searchMode.addEventListener('change', () => {
         if (storageAvailable) chrome.storage.local.set({ fzfLastMode: searchMode.value });
-        if (searchInput.value) performSearch(searchInput.value, searchMode.value);
+        if (searchInput.value.trim()) performSearch(searchInput.value, searchMode.value); // Removed length check
     });
 
     cancelButton.addEventListener('click', async () => {
@@ -301,7 +297,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const nextIndex = (currentModeIndex + 1) % modes.length;
         searchMode.value = modes[nextIndex];
         if (storageAvailable) chrome.storage.local.set({ fzfLastMode: searchMode.value });
-        if (searchInput.value) performSearch(searchInput.value, searchMode.value);
+        if (searchInput.value.trim()) performSearch(searchInput.value, searchMode.value);
     }
 
     document.addEventListener('keydown', async (e) => {
@@ -323,6 +319,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     confirmButton.addEventListener('click', async () => {
         const query = searchInput.value.trim();
         if (query) await performSearch(query, searchMode.value);
+        else console.log('No search query provided');
     });
 
     window.addEventListener('unload', async () => {

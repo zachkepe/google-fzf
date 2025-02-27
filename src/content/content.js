@@ -330,16 +330,16 @@ if (!window.googleFzfInitialized) {
             searchManager = new ContentSearchManager();
             await searchManager.initialize();
 
-            // Inject CSS styles for highlighting
+            // Inject CSS styles for highlighting with lighter colors
             const style = document.createElement('style');
             style.textContent = `
                 .fuzzy-search-highlight {
-                    background-color: #4A5568 !important;
+                    background-color: #A0AEC0 !important; /* Light gray for better readability */
                     padding: 1px;
                 }
                 .fuzzy-search-highlight-active {
-                    background-color: #63B3ED !important;
-                    color: #fff !important;
+                    background-color: #BBDEFB !important; /* Light blue for active highlight */
+                    color: #000000 !important; /* Black text for contrast */
                     padding: 1px;
                 }
             `;

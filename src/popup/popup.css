@@ -113,14 +113,14 @@ html, body {
 #confirm-search::before { content: "✓"; }
 #cancel-search::before { content: "✕"; }
 
-/* Highlight styles (reference) - unchanged but aligned with Google colors */
+/* Highlight styles (updated to match content.js) */
 .fuzzy-search-highlight {
-  background-color: #4A5568;
+  background-color: #A0AEC0; /* Light gray */
   padding: 1px;
 }
 
 .fuzzy-search-highlight-active {
-  background-color: #8AB4F8; /* Google’s blue highlight */
-  color: #202124; /* Dark text for contrast */
+  background-color: #BBDEFB; /* Light blue */
+  color: #000000; /* Black text for readability */
   padding: 1px;
 }
