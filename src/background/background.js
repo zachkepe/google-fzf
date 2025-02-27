@@ -113,11 +113,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     const bytes = new Uint8Array(data);
                     const binary = uint8ToString(bytes);
                     const base64Data = btoa(binary);
-                    sendResponse({ data: base64Data });
+                    try {
+                        sendResponse({ data: base64Data });
+                    } catch (e) {
+                        console.warn('Message channel closed before response could be sent:', e);
+                    }
                 })
                 .catch(error => {
                     console.error('PDF fetch failed:', error);
-                    sendResponse({ error: error.message });
+                    try {
+                        sendResponse({ error: error.message });
+                    } catch (e) {
+                        console.warn('Message channel closed before error response:', e);
+                    }
                 });
             return true;
 
