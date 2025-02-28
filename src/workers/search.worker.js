@@ -38,16 +38,26 @@ let embeddings = null;
 let embeddingCache = new Map();
 
 /**
+ * Tracks whether TensorFlow.js has been initialized in the worker.
+ * @type {boolean}
+ */
+let workerTfInitialized = false;
+
+/**
  * Handles messages from the main thread to initialize or perform searches.
  * @param {MessageEvent} e - The message event containing type and data.
  */
 self.onmessage = async function(e) {
     if (e.data.type === 'INIT') {
         try {
-            if (!tf.getBackend()) {
-                await tf.setBackend('webgl');
-                await tf.ready();
-                console.log('TensorFlow.js initialized in worker with WebGL backend');
+            if (!workerTfInitialized) {
+                if (!tf.getBackend()) {
+                    console.log('Worker: Setting WebGL backend');
+                    await tf.setBackend('webgl');
+                    await tf.ready();
+                    console.log('TensorFlow.js initialized in worker with WebGL backend');
+                }
+                workerTfInitialized = true;
             }
             const response = await fetch(e.data.embeddingsUrl);
             const data = await response.json();

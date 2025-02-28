@@ -3,6 +3,7 @@ import { sanitizeInput, validateSearchPattern } from '../utils/sanitizer';
 import RateLimiter from '../utils/rateLimiter';
 import { highlight, clearHighlights, scrollToMatch } from './highlighter';
 import Fuse from 'fuse.js';
+import * as tf from '@tensorflow/tfjs';
 
 /**
  * Manages content searching functionality across web pages and PDFs.
@@ -327,6 +328,13 @@ if (!window.googleFzfInitialized) {
      */
     async function initializeExtension() {
         try {
+            // Explicitly set WebGL backend once if not already set
+            if (!tf.getBackend()) {
+                console.log('Content script: Setting WebGL backend');
+                await tf.setBackend('webgl');
+                await tf.ready();
+                console.log('TensorFlow.js initialized in content script with WebGL backend');
+            }
             searchManager = new ContentSearchManager();
             await searchManager.initialize();
 
