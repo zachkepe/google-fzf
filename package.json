@@ -1,5 +1,5 @@
 {
-    "name": "google-fzf",
+    "name": "browser-fzf",
     "version": "1.0.0",
     "description": "AI-powered fuzzy search for web pages using in-browser ML",
     "main": "src/background/background.js",

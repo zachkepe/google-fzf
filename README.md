@@ -1,8 +1,8 @@
-# Google FZF Search
+# Browser FZF Search
 
 **Version:** 1.1.0 | **License:** MIT
 
-Google FZF Search is an AI-powered Chrome extension that enhances web and PDF search capabilities directly in your browser. Leveraging local machine learning with TensorFlow.js and pre-trained GloVe embeddings, it provides fast, privacy-preserving semantic, exact, and fuzzy search functionality without relying on external servers.
+Browser FZF Search is an AI-powered Chrome extension that enhances web and PDF search capabilities directly in your browser. Leveraging local machine learning with TensorFlow.js and pre-trained GloVe embeddings, it provides fast, privacy-preserving semantic, exact, and fuzzy search functionality without relying on external servers.
 
 ## ✨ Features
 
