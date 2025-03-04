@@ -8,7 +8,6 @@
       "scripting",
       "tabs",
       "webNavigation",
-      "webRequest",
       "downloads",
       "commands",
       "storage"
