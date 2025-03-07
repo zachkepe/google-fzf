@@ -17,12 +17,12 @@ Browser FZF Search is an AI-powered Chrome extension that enhances web and PDF s
 
 1. **Clone the Repository**
    ``` bash
-   git clone https://github.com/zachkepe/google-fzf.git
+   git clone https://github.com/zachkepe/browser-fzf.git
    ```
 
 2. **Install Dependencies**
    ``` bash
-   cd google-fzf && npm install
+   cd browser-fzf && npm install
    ```
 
 3. **Build the Extension**
@@ -90,4 +90,4 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 ## 📞 Contact
 
-For issues or inquiries, please file a ticket on the [GitHub Issues](https://github.com/zachkepe/google-fzf/issues) page or contact Zach Kepe directly.
+For issues or inquiries, please file a ticket on the [GitHub Issues](https://github.com/zachkepe/browser-fzf/issues) page or contact Zach Kepe directly.

@@ -318,8 +318,8 @@ class ContentSearchManager {
 let searchManager = null;
 
 // Initialization logic to prevent multiple instances
-if (!window.googleFzfInitialized) {
-    window.googleFzfInitialized = true;
+if (!window.browserFzfInitialized) {
+    window.browserFzfInitialized = true;
 
     /**
      * Initializes the extension content script.
